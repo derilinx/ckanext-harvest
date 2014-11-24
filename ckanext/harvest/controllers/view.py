@@ -105,8 +105,8 @@ class ViewController(BaseController):
             # Create a harvest job for the new source
             p.toolkit.get_action('harvest_job_create')(context,{'source_id':source['id']})
 
-            h.flash_success(_('New harvest source added successfully.'
-                    'A new harvest job for the source has also been created.'))
+            h.flash_success(_('New harvest source added successfully. '
+                    'The first harvest has now been scheduled.'))
             redirect('/harvest/%s' % source['id'])
         except p.toolkit.NotAuthorized,e:
             abort(401,self.not_auth_message)
