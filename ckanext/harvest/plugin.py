@@ -1,27 +1,21 @@
 import os
 from logging import getLogger
 
-from pylons import config
-from genshi.input import HTML
-from genshi.filters import Transformer
-
-import ckan.lib.helpers as h
-
-from ckan.plugins import implements, SingletonPlugin
-from ckan.plugins import IRoutes, IConfigurer
-from ckan.plugins import IConfigurable, IActions, IAuthFunctions
+import ckan.plugins as p
 from ckanext.harvest.model import setup as model_setup
+
 
 log = getLogger(__name__)
 assert not log.disabled
 
-class Harvest(SingletonPlugin):
+class Harvest(p.SingletonPlugin):
 
-    implements(IConfigurable)
-    implements(IRoutes, inherit=True)
-    implements(IConfigurer, inherit=True)
-    implements(IActions)
-    implements(IAuthFunctions)
+    p.implements(p.IConfigurable)
+    p.implements(p.IRoutes, inherit=True)
+    p.implements(p.IConfigurer, inherit=True)
+    p.implements(p.IActions)
+    p.implements(p.IAuthFunctions)
+    p.implements(p.ITemplateHelpers)
 
     def configure(self, config):
 
@@ -34,15 +28,15 @@ class Harvest(SingletonPlugin):
         map.redirect('/harvest/', '/harvest') # because there are relative links
         map.connect('harvest', '/harvest',controller=controller,action='index')
 
-        map.connect('/harvest/new', controller=controller, action='new')
-        map.connect('/harvest/edit/:id', controller=controller, action='edit')
-        map.connect('/harvest/delete/:id',controller=controller, action='delete')
+        map.connect('harvest_new', '/harvest/new', controller=controller, action='new')
+        map.connect('harvest_edit', '/harvest/edit/:id', controller=controller, action='edit')
+        map.connect('harvest_delete', '/harvest/delete/:id',controller=controller, action='delete')
         map.connect('harvest_source', '/harvest/:id', controller=controller, action='read')
 
         map.connect('harvesting_job_create', '/harvest/refresh/:id',controller=controller,
                 action='create_harvesting_job')
 
-        map.connect('/harvest/object/:id', controller=controller, action='show_object')
+        map.connect('harvest_object_show', '/harvest/object/:id', controller=controller, action='show_object')
 
         return map
 
@@ -77,6 +71,18 @@ class Harvest(SingletonPlugin):
 
         return auth_functions
 
+    ## ITemplateHelpers
+
+    def get_helpers(self):
+        from ckanext.harvest import helpers as harvest_helpers
+        return {
+                #'package_list_for_source': harvest_helpers.package_list_for_source,
+                'harvesters_info': harvest_helpers.harvesters_info,
+                'harvester_types': harvest_helpers.harvester_types,
+                'harvest_frequencies': harvest_helpers.harvest_frequencies,
+                'link_for_harvest_object': harvest_helpers.link_for_harvest_object,
+                'harvest_source_extra_fields': harvest_helpers.harvest_source_extra_fields,
+                }
 
 def _get_logic_functions(module_root, logic_functions={}):
 

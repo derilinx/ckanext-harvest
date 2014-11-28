@@ -88,8 +88,7 @@ class ViewController(BaseController):
         vars = {'data': data, 'errors': errors, 'error_summary': error_summary, 'harvesters': harvesters_info}
 
         c.groups = self._get_publishers()
-        c.form = render('source/new_source_form.html', extra_vars=vars)
-        return render('source/new.html')
+        return render('source/new.html', extra_vars=vars)
 
     def _save_new(self):
         try:
@@ -149,8 +148,7 @@ class ViewController(BaseController):
         c.source_title = old_data.get('title') if old_data else ''
         c.source_id = id
         c.groups = self._get_publishers()
-        c.form = render('source/new_source_form.html', extra_vars=vars)
-        return render('source/edit.html')
+        return render('source/edit.html', extra_vars=vars)
 
     def _save_edit(self,id):
         try:

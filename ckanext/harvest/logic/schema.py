@@ -1,4 +1,7 @@
-from ckan.logic.validators import package_id_exists
+from ckan.logic.validators import (package_id_exists,
+                                   name_validator,
+                                   package_name_validator,
+                                   )
 from ckan.logic.converters import convert_to_extras
 
 from ckan.lib.navl.validators import (ignore_missing,
@@ -27,13 +30,14 @@ def default_harvest_source_schema():
     schema = {
         'id': [ignore_missing, unicode, harvest_source_id_exists],
         'url': [not_empty, unicode, harvest_source_url_validator],
+        'name': [not_empty, unicode, name_validator, package_name_validator],
         'type': [not_empty, unicode, harvest_source_type_exists],
         'title': [not_empty, unicode],
-        'description': [ignore_missing,unicode],
-        'active': [ignore_missing,harvest_source_active_validator],
-        'user_id': [ignore_missing,unicode],
-        'config': [ignore_missing,harvest_source_config_validator],
-        'publisher_id': [not_empty,unicode],
+        'description': [ignore_missing, unicode],
+        'active': [ignore_missing, harvest_source_active_validator],
+        'user_id': [ignore_missing, unicode],
+        'config': [ignore_missing, harvest_source_config_validator],
+        'publisher_id': [not_empty, unicode],
         'frequency': [ignore_missing, unicode, harvest_source_frequency_exists, convert_to_extras],
     }
 
