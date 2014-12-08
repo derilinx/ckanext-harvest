@@ -141,7 +141,7 @@
                         <i>Object errors</i>
                         <ul>
                         <li py:for="error in c.source.status.last_job.object_errors">
-                            <div class="message">Harvest of GUID <a href="${g.site_url}/harvest/object/${error.harvest_object_id}">${error.object.guid}</a></div>
+                            <div class="message">Harvest of GUID <a href="/harvest/object/${error.harvest_object_id}">${error.object.guid}</a></div>
                             <div py:for="section in error.message.split('\n\n')" class="message-section">
                               <div py:for="line in section.split('\n')" class="message">
                                 ${line}

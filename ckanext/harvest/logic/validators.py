@@ -29,6 +29,9 @@ def harvest_job_exists(value, context):
     return result
 
 def _normalize_url(url):
+    '''Strips off parameters off a URL, and an unnecessary port number, so that
+    simple variations on a URL are ignored, to used to help avoid getting two
+    harvesters for the same URL.'''
     o = urlparse.urlparse(url)
 
     # Normalize port
@@ -66,7 +69,7 @@ def harvest_source_url_validator(key,data,errors,context):
     for url,active in existing_sources:
         url = _normalize_url(url)
         if url == new_url:
-            raise Invalid('There already is a Harvest Source for this URL: %s' % data[key])
+            raise Invalid('There already is a Harvest Source for this URL: %s' % url)
 
     return data[key] 
 
