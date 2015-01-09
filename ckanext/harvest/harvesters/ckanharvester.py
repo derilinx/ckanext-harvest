@@ -230,7 +230,12 @@ class CKANHarvester(HarvesterBase):
                                     % (url, e), harvest_job)
             return None
 
-        return json.loads(content)
+        try:
+            return json.loads(content)
+        except ValueError, e:
+            self._save_gather_error('Unable to parse response as JSON. Response starts: %r Error: %s'
+                    % (content[:100], e), harvest_job)
+            return None
 
     def fetch_stage(self, harvest_object):
         log.debug('In CKANHarvester fetch_stage')
