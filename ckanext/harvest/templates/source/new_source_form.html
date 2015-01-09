@@ -62,16 +62,16 @@
         <div class="panel panel-default">
             <div class="panel-heading"><strong>Ownership/Configuration</strong></div>
             <div class="panel-body">
-                <div class="control-group">
+                <div class="control-group" py:with="groups=h.organizations_available('create_dataset')">
                     <label class="field_opt" for="groups__${len(data.get('groups', []))}__id">Publisher</label>
-                    <py:if test="c.groups">
+                    <py:if test="groups">
                       <select id="publisher_id" name="publisher_id" class="form-control">
-                        <py:for each="group in c.groups">
+                        <py:for each="group in groups">
                         <option value="${group['id']}" py:attrs="{'selected': 'selected' if group['id'] == data.get('publisher_id',None) else None}">${group['title']}</option>
                         </py:for>
                       </select>
                     </py:if>
-                    <span py:if="not c.groups"><em>Cannot add any publishers.</em></span>
+                    <span py:if="not groups"><em>Cannot add any publishers.</em></span>
                 </div>
 
                 <div class="control-group" style="margin-top:8px; ${'display:None' if not c.userobj.sysadmin else ''}">

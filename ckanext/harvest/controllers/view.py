@@ -23,25 +23,6 @@ class ViewController(BaseController):
 
     not_auth_message = _('Not authorized to see this page')
 
-    def _get_publishers(self):
-        groups = None
-
-        if ckan.new_authz.is_sysadmin(c.user):
-            groups = Group.all(group_type='organization')
-        elif c.userobj:
-            groups = c.userobj.get_groups('organization')
-        else: # anonymous user shouldn't have access to this page anyway.
-            groups = []
-
-        # Be explicit about which fields we make available in the template
-        groups = [ {
-            'name': g.name,
-            'id': g.id,
-            'title': g.title,
-        } for g in groups ]
-
-        return groups
-
 
     def index(self):
         context = {'model': model, 'user': c.user, 'session': model.Session,
@@ -87,7 +68,6 @@ class ViewController(BaseController):
 
         vars = {'data': data, 'errors': errors, 'error_summary': error_summary, 'harvesters': harvesters_info}
 
-        c.groups = self._get_publishers()
         c.form = render('source/new_source_form.html', extra_vars=vars)
         return render('source/new.html')
 
@@ -148,7 +128,6 @@ class ViewController(BaseController):
 
         c.source_title = old_data.get('title') if old_data else ''
         c.source_id = id
-        c.groups = self._get_publishers()
         c.form = render('source/new_source_form.html', extra_vars=vars)
         return render('source/edit.html')
 
