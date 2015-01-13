@@ -43,7 +43,7 @@ def harvest_source_update(context,data_dict):
         log.error('Harvest source %s does not exist', source_id)
         raise NotFound('Harvest source %s does not exist' % source_id)
 
-    data, errors = validate(data_dict, schema)
+    data, errors = validate(data_dict, schema, context=context)
 
     if errors:
         session.rollback()

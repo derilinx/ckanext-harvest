@@ -21,7 +21,8 @@ from ckan.model.domain_object import DomainObject
 from ckan.model.package import Package
 from ckan.lib.munge import munge_title_to_name
 
-UPDATE_FREQUENCIES = ['MANUAL','MONTHLY','WEEKLY','BIWEEKLY','DAILY', 'ALWAYS']
+UPDATE_FREQUENCIES = ['MANUAL','MONTHLY','WEEKLY','BIWEEKLY','DAILY']
+# DGU removes 'ALWAYS' as it is far too often
 
 log = logging.getLogger(__name__)
 

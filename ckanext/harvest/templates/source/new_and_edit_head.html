@@ -1,0 +1,15 @@
+{# These are the CSS bits for <head> for the source forms #} 
+
+  {# DGU-specific change
+     The CSS to make the form fields pretty used to be /css/forms.css (in core CKAN) for Genshi, and is now in forms.less that's compiled into main.css (in core CKAN). But DGU doesn't use core CKAN's main.css. So ideally we'd use forms.less and perhaps other parts of main.css too, but we'd have to isolate the right bits and compile them. So instead we have pulled out just the bits we need manually and put it in dgu-forms.css.
+    <!-- <link rel="stylesheet" href="/css/forms.css" type="text/css" media="screen, print" />-->
+    <!-- <link rel="stylesheet" href="/css/ckan-main.debug.css" type="text/css" media="screen, print" /> -->
+  #}
+  <link type="text/css" rel="stylesheet" media="all" href="/ckanext/harvest/dgu-forms.css" />
+
+  <link type="text/css" rel="stylesheet" media="all" href="/ckanext/harvest/style.css" />
+
+  {# DGU-specific change
+     harvest.css is copied from master branch #}
+  <link type="text/css" rel="stylesheet" media="all" href="/ckanext/harvest/harvest.css" /> 
+

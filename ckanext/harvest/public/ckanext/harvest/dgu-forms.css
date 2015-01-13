@@ -1,0 +1,195 @@
+/* Error box */
+form .error-explanation {
+    display: block;
+}
+.control-group.error .input-prepend .add-on, .control-group.error .input-append .add-on {
+    color: #B55457;
+    background-color: #F8F0F0;
+    border-color: #B55457;
+}
+.alert-error {
+    background-color: #f8f0f0;
+    border-color: #c6898b;
+    color: #b55457;
+}
+
+textarea:focus, input[type="text"]:focus, input[type="password"]:focus, input[type="datetime"]:focus, input[type="datetime-local"]:focus, input[type="date"]:focus, input[type="month"]:focus, input[type="time"]:focus, input[type="week"]:focus, input[type="number"]:focus, input[type="email"]:focus, input[type="url"]:focus, input[type="search"]:focus, input[type="tel"]:focus, input[type="color"]:focus, .uneditable-input:focus {
+    border-color: rgba(82, 168, 236, 0.8);
+    outline: 0px none;
+    box-shadow: 0px 1px 1px rgba(0, 0, 0, 0.075) inset, 0px 0px 8px rgba(82, 168, 236, 0.6);
+}
+input, textarea, .uneditable-input {
+    width: 206px;
+}
+input, textarea, .uneditable-input {
+    margin-left: 0px;
+}
+select, textarea, input[type="text"], input[type="password"], input[type="datetime"], input[type="datetime-local"], input[type="date"], input[type="month"], input[type="time"], input[type="week"], input[type="number"], input[type="email"], input[type="url"], input[type="search"], input[type="tel"], input[type="color"], .uneditable-input {
+    display: inline-block;
+    height: 20px;
+    padding: 4px 6px;
+    margin-bottom: 10px;
+    font-size: 14px;
+    line-height: 20px;
+    color: #555;
+    vertical-align: middle;
+}
+textarea, input[type="text"], input[type="password"], input[type="datetime"], input[type="datetime-local"], input[type="date"], input[type="month"], input[type="time"], input[type="week"], input[type="number"], input[type="email"], input[type="url"], input[type="search"], input[type="tel"], input[type="color"], .uneditable-input {
+    background-color: #FFF;
+    border: 1px solid #CCC;
+    box-shadow: 0px 1px 1px rgba(0, 0, 0, 0.075) inset;
+    transition: border 0.2s linear 0s, box-shadow 0.2s linear 0s;
+}
+.control-group.error .checkbox, .control-group.error .radio, .control-group.error input, .control-group.error select, .control-group.error textarea {
+    color: #B55457;
+}
+.control-group.error input, .control-group.error select, .control-group.error textarea {
+    border-color: #B55457;
+    box-shadow: 0px 1px 1px rgba(0, 0, 0, 0.075) inset;
+}
+
+/* Field */
+.input-prepend input {
+    box-sizing: content-box;
+}
+.form-horizontal .control-group:after {
+    clear: both;
+}
+.form-horizontal .control-group {
+    margin-bottom: 20px;
+}
+.control-group.error input, .control-group.error select, .control-group.error textarea, .control-group.error .input-prepend .add-on, .control-group.error .input-append .add-on {
+    border-color: #C6898B;
+}
+.control-group.error input:focus, .control-group.error select:focus, .control-group.error textarea:focus {
+    border-color: #954143;
+    box-shadow: 0px 1px 1px rgba(0, 0, 0, 0.075) inset, 0px 0px 6px #D49B9D;
+}
+label:after {
+    content: ":";
+}
+
+/* Field label */
+#source-new .control-label {
+    width: 150px;
+}
+.control-group.error .control-label, .control-group.error .help-block, .control-group.error .help-inline {
+    color: #B55457;
+}
+.form-horizontal .control-label {
+    float: left;
+    width: 160px;
+    padding-top: 5px;
+    text-align: right;
+}
+label {
+    margin-bottom: 5px;
+    display: block;
+}
+
+/* Error below a field */
+.control-full .error-block {
+    width: auto;
+}
+.control-group.error .input-prepend .error-block, .control-custom.error .error-block {
+    width: auto;
+}
+.error-block {
+    display: block;
+    padding: 6px 8px 3px;
+    background: none repeat scroll 0% 0% #C6898B;
+    margin: -3px 0px 0px;
+    color: #FFF;
+    width: 208px;
+}
+.error-block, .error-inline {
+    font-size: 12px;
+}
+.form-search input, .form-inline input, .form-horizontal input, .form-search textarea, .form-inline textarea, .form-horizontal textarea, .form-search select, .form-inline select, .form-horizontal select, .form-search .help-inline, .form-inline .help-inline, .form-horizontal .help-inline, .form-search .uneditable-input, .form-inline .uneditable-input, .form-horizontal .uneditable-input, .form-search .input-prepend, .form-inline .input-prepend, .form-horizontal .input-prepend, .form-search .input-append, .form-inline .input-append, .form-horizontal .input-append {
+    display: inline-block;
+    margin-bottom: 0px;
+    vertical-align: middle;
+}
+.control-full input, .control-full select, .control-full textarea {
+    box-sizing: border-box;
+    height: auto;
+    width: 100%;
+}
+.control-large input, .control-large .control-label {
+    font-size: 17.5px;
+    line-height: 30px;
+}
+.control-large input {
+    height: 41px;
+}
+#source-new .controls {
+    margin-left: 135px;
+}
+
+/* Field prepend */
+.input-prepend .add-on, .input-prepend .btn {
+    margin-right: -1px;
+}
+.input-append .add-on, .input-prepend .add-on, .input-append .btn, .input-prepend .btn, .input-append .btn-group > .dropdown-toggle, .input-prepend .btn-group > .dropdown-toggle {
+    vertical-align: top;
+}
+.input-append .add-on, .input-prepend .add-on {
+    display: inline-block;
+    width: auto;
+    height: 20px;
+    min-width: 16px;
+    padding: 4px 5px;
+    font-size: 14px;
+    font-weight: normal;
+    line-height: 20px;
+    text-align: center;
+    text-shadow: 0px 1px 0px #FFF;
+    background-color: #EEE;
+    border: 1px solid #CCC;
+    box-sizing: content-box;
+}
+.input-append, .input-prepend {
+    white-space: nowrap;
+}
+
+/* Field info */
+.form-horizontal .info-block:before {
+    font-size: 2.2em;
+    position: absolute;
+    left: 0px;
+    top: 2px;
+}
+.form-horizontal .info-block {
+    position: relative;
+    display: block;
+    font-size: 13px;
+    line-height: 1.3;
+    padding: 6px 0px 6px 25px;
+    margin-top: 6px;
+}
+
+/* Radio buttons */
+.harvest-types label.radio {
+    font-weight: normal;
+    margin-bottom: 10px;
+}
+input[type="file"],
+input[type="image"],
+input[type="submit"],
+input[type="reset"],
+input[type="button"],
+input[type="radio"],
+input[type="checkbox"] {
+      width: auto;
+}
+
+/* Drop-down */
+select, input[type="file"] {
+    height: 30px;
+    line-height: 30px;
+}
+select {
+    width: 220px;
+    border: 1px solid #CCC;
+    background-color: #FFF;
+}

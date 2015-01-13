@@ -4,9 +4,7 @@
 <h1>New harvest source</h1>
 
 {% block optional_head %}
-  <link type="text/css" rel="stylesheet" media="all" href="/css/temp.css" />
-  <!--<link rel="stylesheet" href="/css/forms.css" type="text/css" media="screen, print" />-->
-  <link type="text/css" rel="stylesheet" media="all" href="/ckanext/harvest/style.css" />
+  {% include 'source/new_and_edit_head.html' %}  
 {% endblock %}
 
 {% block breadcrumb_content %}

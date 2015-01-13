@@ -36,12 +36,11 @@ error_summary
     <div class="controls">
       {% for harvester in h.harvesters_info() %}
         {% set checked = False %}
-        {# select first option if nothing in data #}
-        {% if data.source_type == harvester['name'] or (not data.source_type and loop.first) %}
+        {% if data.type == harvester['name'] %}
            {% set checked = True %}
         {% endif %}
         <label class="radio">
-          <input type="radio" name="source_type" value="{{ harvester['name'] }}" {{ "checked " if checked }} data-module="harvest-type-change">
+          <input type="radio" name="type" value="{{ harvester['name'] }}" {{ "checked " if checked }} data-module="harvest-type-change">
           {{ harvester['title'] }}
           <i class="icon-question-sign muted" title="{{ harvester['description'] }}" data-toggle="tooltip"></i>
         </label>
@@ -51,8 +50,11 @@ error_summary
 
   {{ form.select('frequency', id='field-frequency', label=_('Update frequency'), options=h.harvest_frequencies(), selected=data.frequency, error=errors.frequency) }}
 
+  {% set user_is_sysadmin = h.check_access('sysadmin') %}
   {% block extra_config %}
+  <div style="{{'display:None' if not user_is_sysadmin else ''}}">
   {{ form.textarea('config', id='field-config', label=_('Configuration'), value=data.config, error=errors.config) }}
+  </div>
   {% endblock extra_config %}
 
   {# if we have a default group then this wants remembering #}
@@ -61,22 +63,21 @@ error_summary
   {% endif %}
 
   {% set dataset_is_draft = data.get('state', 'draft').startswith('draft') or data.get('state', 'none') ==  'none' %}
-  {% set dataset_has_organization = data.owner_org or data.group_id %}
+  {% set dataset_has_organization = data.publisher_name or data.group_id %}
   {% set organizations_available = h.organizations_available('create_dataset') %}
   {% set user_is_sysadmin = h.check_access('sysadmin') %}
   {% set show_organizations_selector = organizations_available and (user_is_sysadmin or dataset_is_draft) %}
 
   {% if show_organizations_selector %}
-    {% set existing_org = data.owner_org %}
+    {% set existing_org = data.publisher_name %}
     <div class="control-group">
       <label for="field-organizations" class="control-label">{{ _('Organization') }}</label>
       <div class="controls">
-        <select id="field-organizations" name="owner_org" data-module="autocomplete">
-          <option value="" {% if not selected_org and data.id %} selected="selected" {% endif %}>{{ _('No organization') }}</option>
+        <select id="field-organizations" name="publisher_name" data-module="autocomplete">
+          {# <option value="" {% if not existing_org and data.id %} selected="selected" {% endif %}>{{ _('No organization') }}</option> #}
           {% for organization in organizations_available %}
-            {# get out first org from users list only if there is not an existing org #}
-            {% set selected_org = (existing_org and existing_org == organization.id) or (not existing_org and not data.id and organization.id == organizations_available[0].id) %}
-            <option value="{{ organization.id }}" {% if selected_org %} selected="selected" {% endif %}>{{ organization.name }}</option>
+            {% set selected_org = (existing_org and existing_org == organization.name) %}
+            <option value="{{ organization.id }}" {% if selected_org %} selected="selected" {% endif %}>{{ organization.title }}</option>
           {% endfor %}
         </select>
       </div>
