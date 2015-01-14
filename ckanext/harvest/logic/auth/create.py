@@ -1,46 +1,48 @@
+from ckan.plugins import toolkit as pt
 from ckan.lib.base import _
 import ckan.new_authz
-from ckan.model import User
 
 from ckanext.harvest.model import HarvestSource
 
-def harvest_source_create(context,data_dict):
-    model = context['model']
-    user = context.get('user','')
+def harvest_source_create(context, data_dict):
+    '''
+        Authorization check for harvest source creation
 
-    # Non-logged users can not create sources
-    if not user:
-        return {'success': False, 'msg': _('Non-logged in users are not authorized to create harvest sources')}
-
-    # Sysadmins and the rest of logged users can create sources,
-    # as long as they belong to a publisher
-    user_obj = User.get(user)
-    if not user_obj or not ckan.new_authz.is_sysadmin(user) and len(user_obj.get_groups(u'organization')) == 0:
-        return {'success': False, 'msg': _('User %s must belong to a publisher to create harvest sources') % str(user)}
-    else:
+        It forwards the checks to package_create, which will check for
+        organization membership, whether if sysadmin, etc according to the
+        instance configuration.
+    '''
+    user = context.get('user')
+    try:
+        pt.check_access('package_create', context, data_dict)
         return {'success': True}
+    except pt.NotAuthorized:
+        return {'success': False,
+                'msg': pt._('User {0} not authorized to create harvest sources').format(user)}
 
-def harvest_job_create(context,data_dict):
+def harvest_job_create(context, data_dict):
+    '''
+        Authorization check for harvest job creation
+
+        It forwards the checks to package_update, ie the user can only create
+        new jobs if she is allowed to edit the harvest source's dataset.
+    '''
     model = context['model']
+    source_id = data_dict['source_id']
     user = context.get('user')
 
-    source_id = data_dict['source_id']
-
-    if not user:
-        return {'success': False, 'msg': _('Non-logged in users are not authorized to create harvest jobs')}
-
-    if ckan.new_authz.is_sysadmin(user):
-        return {'success': True}
-
-    user_obj = User.get(user)
     source = HarvestSource.get(source_id)
     if not source:
-        raise NotFound
+        raise pt.ObjectNotFound(pt._('Harvest source not found'))
 
-    if not user_obj or not source.publisher_id in [g.id for g in user_obj.get_groups(u'organization')]:
-        return {'success': False, 'msg': _('User %s not authorized to create a job for source %s') % (str(user),source.id)}
-    else:
-        return {'success': True}
+    check = ckan.new_authz.has_user_permission_for_group_or_org(
+        source.publisher_id, user, 'update_dataset'
+    )
+    if not check:
+        return {'success': False,
+                'msg': _('User %s not authorized to edit these groups') %
+                        (str(user))}
+    return {'success': True}
 
 def harvest_job_create_all(context,data_dict):
     model = context['model']

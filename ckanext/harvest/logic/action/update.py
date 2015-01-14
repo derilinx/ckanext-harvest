@@ -18,7 +18,7 @@ from ckanext.harvest.queue import get_gather_publisher, resubmit_jobs
 from ckanext.harvest.model import (HarvestSource, HarvestJob, HarvestObject)
 from ckanext.harvest.logic import HarvestJobExists
 from ckanext.harvest.logic.schema import default_harvest_source_schema
-from ckanext.harvest.logic.dictization import harvest_source_dictize
+from ckanext.harvest.logic.dictization import harvest_source_dictize, harvest_job_dictize
 
 from ckanext.harvest.logic.action.create import _error_summary
 from ckanext.harvest.logic.action.get import harvest_source_show, harvest_job_list, get_sources
@@ -265,3 +265,27 @@ def harvest_jobs_run(context,data_dict):
 
     return sent_jobs
 
+
+def harvest_job_abort(context, data_dict):
+
+    check_access('harvest_job_abort', context, data_dict)
+
+    model = context['model']
+
+    source_id = data_dict.get('source_id', None)
+    jobs = get_action('harvest_job_list')(context,
+                                          {'source_id': source_id})
+    if not jobs:
+        raise NotFound('Error: source has no jobs')
+    job = jobs[0]  # latest one
+
+    if job['status'] not in ('Finished', 'Aborted'):
+        job_obj = HarvestJob.get(job['id'])
+        job_obj.status = new_status = 'Aborted'
+        model.repo.commit_and_remove()
+        log.info('Changed the harvest job status to "{0}"'.format(new_status))
+    else:
+        log.info('Nothing to do')
+
+    job_obj = HarvestJob.get(job['id'])
+    return harvest_job_dictize(job_obj, context)

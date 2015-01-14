@@ -447,8 +447,10 @@ def get_sources(context, data_dict):
         # Filter by the user's organizations
 
         publisher_filters = []
-        publishers_for_the_user = user_obj.get_groups(u'organization')
-        for publisher_id in [g.id for g in publishers_for_the_user]:
+        data_dict_ = {'permission': 'create_dataset'}
+        publishers_for_the_user = \
+            p.toolkit.get_action('organization_list_for_user')(context, data_dict_)
+        for publisher_id in [g['id'] for g in publishers_for_the_user]:
             publisher_filters.append(HarvestSource.publisher_id==publisher_id)
 
         if len(publisher_filters):

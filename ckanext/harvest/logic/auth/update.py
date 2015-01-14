@@ -71,3 +71,7 @@ def harvest_jobs_run(context, data_dict):
         return {'success': False, 'msg': _('User %s not authorized to run jobs from source %s') % (str(user),source.id)}
 
     return {'success': True}
+
+
+def harvest_job_abort(context, data_dict):
+    return harvest_jobs_run(context, data_dict)

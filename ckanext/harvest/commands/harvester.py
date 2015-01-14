@@ -61,6 +61,10 @@ class Harvester(CkanCommand):
           or you'll get duplicate harvest objects and error because the gather & fetch jobs get
           done in the background.
 
+      harvester job-abort {source-id}
+        - marks a job as "Aborted" so that the source can be restarted afresh.
+          Does not actually stop running or queued harvest fetchs/objects.
+
     The commands should be run from the ckanext-harvest directory and expect
     a development.ini file to be present. Most of the time you will
     specify the config explicitly though::
@@ -139,6 +143,9 @@ class Harvester(CkanCommand):
             pprint(harvesters_info)
         elif cmd == 'job-run':
             self.job_run()
+        elif cmd == 'job-abort':
+            source_id = unicode(self.args[1])
+            self.job_abort(source_id)
         else:
             print 'Command %s not recognized' % cmd
 
@@ -349,10 +356,8 @@ class Harvester(CkanCommand):
                 if not resp.lower().startswith('y'):
                     sys.exit(1)
                 print 'Closing old job cleanly'
-                from ckanext.harvest.model import HarvestJob
-                job_obj = HarvestJob.get(job['id'])
-                job_obj.status = 'Aborted'
-                model.repo.commit_and_remove()
+                job = get_action('harvest_job_abort')(context,
+                                                    {'source_id': source_id})
                 print 'Starting new job'
                 job = get_action('harvest_job_create')(context, {'source_id': source['id']})
 
@@ -375,6 +380,15 @@ class Harvester(CkanCommand):
 
         # run - mark the job as finished
         jobs = get_action('harvest_jobs_run')(context, {'source_id': source['id']})
+
+    def job_abort(self, source_id):
+        # Get the latest job
+        from ckan import model
+        context = {'model': model, 'user': self.admin_user['name'],
+                   'session': model.Session}
+        job = get_action('harvest_job_abort')(context,
+                                              {'source_id': source_id})
+        print 'Job status: {0}'.format(job['status'])
 
     def print_harvest_sources(self, sources):
         if sources:

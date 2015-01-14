@@ -57,7 +57,7 @@
 
   </py:def>
 
-    <div py:match="content" py:with="can_edit=h.check_access('harvest_source_create'); org_ids=[o.id for o in c.userobj.get_groups('organization')] if c.userobj else []">
+    <div py:match="content" py:with="can_edit=h.check_access('harvest_source_create'); org_ids=[o.id for o in h.organizations_available('create_dataset')] if c.userobj else []">
 
         <a py:if="can_edit" class="btn btn-primary pull-right" id="xnew-harvest-source" href="harvest/new">
             <i class="icon-plus"></i>
