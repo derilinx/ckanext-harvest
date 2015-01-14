@@ -34,14 +34,15 @@ def harvest_source_update(context,data_dict):
     model = context['model']
     session = context['session']
 
-    source_id = data_dict.get('id')
+    source_id = data_dict.get('id') or data_dict.get('name')
     schema = context.get('schema') or default_harvest_source_schema()
 
     log.info('Harvest source %s update: %r', source_id, data_dict)
-    source = HarvestSource.get(source_id)
+    source = HarvestSource.by_name_or_id(source_id)
     if not source:
         log.error('Harvest source %s does not exist', source_id)
         raise NotFound('Harvest source %s does not exist' % source_id)
+    data_dict['id'] = source.id
 
     data, errors = validate(data_dict, schema, context=context)
 
@@ -49,7 +50,7 @@ def harvest_source_update(context,data_dict):
         session.rollback()
         raise ValidationError(errors,_error_summary(errors))
 
-    fields = ['url','title','type','description','user_id','publisher_id','frequency']
+    fields = ['url','title','type','description','user_id','publisher_id','frequency','name']
     for f in fields:
         if f in data and data[f] is not None:
             if f == 'url':
@@ -168,12 +169,12 @@ def _caluclate_next_run(frequency):
     now = datetime.datetime.utcnow()
     if frequency == 'ALWAYS':
         return now
-    if frequency == 'WEEKLY':
-        return now + datetime.timedelta(weeks=1)
-    if frequency == 'BIWEEKLY':
-        return now + datetime.timedelta(weeks=2)
     if frequency == 'DAILY':
         return now + datetime.timedelta(days=1)
+    if frequency == 'WEEKLY':
+        return now + datetime.timedelta(weeks=1)
+    if frequency in ('BIWEEKLY', 'FORTNIGHTLY'):
+        return now + datetime.timedelta(weeks=2)
     if frequency == 'MONTHLY':
         if now.month in (4,6,9,11):
             days = 30
@@ -215,6 +216,12 @@ def harvest_jobs_run(context,data_dict):
 
     if not source_id:
         _make_scheduled_jobs(context, data_dict)
+    else:
+        source = harvest_source_show(context, {'id': source_id})
+        if not source:
+            log.error('Harvest source %s does not exist', source_id)
+            raise NotFound('Harvest source %s does not exist' % source_id)
+        source_id = source['id']
 
     context['return_objects'] = False
 
@@ -228,7 +235,7 @@ def harvest_jobs_run(context,data_dict):
     # resubmit old redis tasks
     resubmit_jobs()
 
-    # Check if there are pending harvest jobs
+    # Check if there are new (i.e. pending) harvest jobs
     jobs = harvest_job_list(context,{'source_id':source_id,'status':u'New'})
     log.info('Number of jobs: %i', len(jobs))
     sent_jobs = []
@@ -238,7 +245,7 @@ def harvest_jobs_run(context,data_dict):
         # Do not raise an exception as that will cause cron (which runs
         # this) to produce an error email.
 
-    # Send each job to the gather queue
+    # Send each new job to the gather queue
     publisher = get_gather_publisher()
     for job in jobs:
         context['include_status'] = False

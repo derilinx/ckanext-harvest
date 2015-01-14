@@ -322,11 +322,15 @@ class Harvester(CkanCommand):
                     msg.ack()
                     msg = consumer.fetch()
 
+        # get the source id first (source_id may be a source.name)
+        context = {'model': model, 'user': self.admin_user['name'],
+                   'session': model.Session}
+        source = get_action('harvest_source_show')(context,
+                                                   {'id': source_id})
         # create harvest job
-        context = {'model': model, 'session': model.Session,
-                   'user': self.admin_user['name']}
         try:
-            job = get_action('harvest_job_create')(context, {'source_id': source_id})
+            job = get_action('harvest_job_create')(context,
+                                                   {'source_id': source['id']})
         except HarvestJobExists:
             # Job has been created already - we can probably use it.
             # If job status is 'New' then it is ready to run.
@@ -334,7 +338,7 @@ class Harvester(CkanCommand):
             context = {'model': model, 'user': self.admin_user['name'],
                        'session': model.Session}
             jobs = get_action('harvest_job_list')(context,
-                                                {'source_id': source_id})
+                                                 {'source_id': source['id']})
             job = jobs[0]  # latest one
             if job['status'] != 'New':
                 # Non-new status happens when the job is in progress or has
@@ -350,10 +354,10 @@ class Harvester(CkanCommand):
                 job_obj.status = 'Aborted'
                 model.repo.commit_and_remove()
                 print 'Starting new job'
-                job = get_action('harvest_job_create')(context, {'source_id': source_id})
+                job = get_action('harvest_job_create')(context, {'source_id': source['id']})
 
         # run - sends the job to the gather queue
-        jobs = get_action('harvest_jobs_run')(context, {'source_id': source_id})
+        jobs = get_action('harvest_jobs_run')(context, {'source_id': source['id']})
         assert jobs
 
         # gather
@@ -370,7 +374,7 @@ class Harvester(CkanCommand):
             queue.fetch_callback(message.payload, message)
 
         # run - mark the job as finished
-        jobs = get_action('harvest_jobs_run')(context, {'source_id': source_id})
+        jobs = get_action('harvest_jobs_run')(context, {'source_id': source['id']})
 
     def print_harvest_sources(self, sources):
         if sources:

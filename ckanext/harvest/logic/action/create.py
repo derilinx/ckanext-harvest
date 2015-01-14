@@ -30,7 +30,7 @@ def harvest_source_create(context,data_dict):
     session = context['session']
     schema = context.get('schema') or default_harvest_source_schema()
 
-    data, errors = validate(data_dict, schema)
+    data, errors = validate(data_dict, schema, context=context)
 
     if errors:
         session.rollback()
@@ -41,7 +41,7 @@ def harvest_source_create(context,data_dict):
     source.url = data['url'].strip()
     source.type = data['type']
 
-    opt = ['active','title','description','user_id','publisher_id','config']
+    opt = ['active','title','description','user_id','publisher_id','config','frequency','name']
     for o in opt:
         if o in data and data[o] is not None:
             source.__setattr__(o,data[o])
@@ -61,7 +61,7 @@ def harvest_job_create(context,data_dict):
     source_id = data_dict['source_id']
 
     # Check if source exists
-    source = HarvestSource.get(source_id)
+    source = HarvestSource.by_name_or_id(source_id)
     if not source:
         log.warn('Harvest source %s does not exist', source_id)
         raise NotFound('Harvest source %s does not exist' % source_id)
@@ -72,7 +72,7 @@ def harvest_job_create(context,data_dict):
         raise HarvestError('Can not create jobs on inactive sources')
 
     # Check if there already is an unrun or currently running job for this source
-    exists = _check_for_existing_jobs(context, source_id)
+    exists = _check_for_existing_jobs(context, source.id)
     if exists:
         log.warn('There is already an unrun job %r for this source %s', exists, source_id)
         raise HarvestJobExists('There already is an unrun job for this source')

@@ -38,9 +38,8 @@ def harvest_source_show(context,data_dict):
     check_access('harvest_source_show',context,data_dict)
 
     id = data_dict.get('id')
-    attr = data_dict.get('attr',None)
 
-    source = HarvestSource.get(id,attr=attr)
+    source = HarvestSource.by_name_or_id(id)
     context['source'] = source
 
     if not source:
@@ -130,7 +129,7 @@ def harvest_source_show_job_status(context, data_dict):
     out = {
            'job_count': 0,
            'last_job': None,
-           'next_harvest': 'Not yet scheduled',
+           'next_harvest_job': None,
            'running_job': None,
            }
 
@@ -145,7 +144,7 @@ def harvest_source_show_job_status(context, data_dict):
     # Get next scheduled job
     next_job = HarvestJob.filter(source=source, status=u'New').first()
     if next_job:
-        out['next_harvest'] = 'Scheduled to start within 10 minutes'
+        out['next_harvest_job'] = next_job
 
     # Get the running or latest job
     last_job = harvest_model.HarvestJob.filter(source=source) \

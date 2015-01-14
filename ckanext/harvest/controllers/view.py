@@ -106,7 +106,7 @@ class ViewController(BaseController):
 
             h.flash_success(_('New harvest source added successfully. '
                     'The first harvest has now been scheduled.'))
-            redirect('/harvest/%s' % source['id'])
+            redirect('/harvest/%s' % data_dict['name'])
         except p.toolkit.NotAuthorized,e:
             abort(401,self.not_auth_message)
         except DataError,e:
@@ -153,7 +153,10 @@ class ViewController(BaseController):
     def _save_edit(self,id):
         try:
             data_dict = dict(request.params)
-            data_dict['id'] = id
+            if is_uuid(id):
+                data_dict['id'] = id
+            else:
+                data_dict['name'] = id
             data_dict['user_id'] = c.userobj.id
             context = {'model':model, 'user':c.user, 'session':model.Session,
                        'schema':harvest_source_form_schema()}
@@ -161,7 +164,7 @@ class ViewController(BaseController):
             p.toolkit.get_action('harvest_source_update')(context,data_dict)
 
             h.flash_success(_('Harvest source edited successfully.'))
-            redirect('/harvest/%s' %id)
+            redirect('/harvest/%s' % data_dict['name'])
         except p.toolkit.NotAuthorized,e:
             abort(401,self.not_auth_message)
         except DataError,e:
@@ -273,3 +276,12 @@ class ViewController(BaseController):
         except Exception, e:
             msg = 'An error occurred: [%s]' % str(e)
             abort(500,msg)
+
+uuid_re = None
+
+def is_uuid(ref):
+    global uuid_re
+    if not uuid_re:
+        uuid_re = re.compile(
+            '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}')
+    return bool(uuid_re.match(ref))

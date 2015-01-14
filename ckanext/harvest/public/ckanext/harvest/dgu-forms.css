@@ -102,6 +102,9 @@ label {
     color: #FFF;
     width: 208px;
 }
+.error-inline {
+  color: #b55457;
+}
 .error-block, .error-inline {
     font-size: 12px;
 }

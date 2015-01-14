@@ -10,8 +10,8 @@ def harvest_source_delete(context,data_dict):
     log.info('Deleting harvest source: %r', data_dict)
     check_access('harvest_source_delete',context,data_dict)
 
-    source_id = data_dict.get('id')
-    source = HarvestSource.get(source_id)
+    source_id = data_dict.get('id') or data_dict.get('name')
+    source = HarvestSource.by_name_or_id(source_id)
     if not source:
         log.warn('Harvest source %s does not exist', source_id)
         raise NotFound('Harvest source %s does not exist' % source_id)
