@@ -34,14 +34,14 @@ def harvest_source_update(context,data_dict):
     model = context['model']
     session = context['session']
 
-    source_id = data_dict.get('id') or data_dict.get('name')
+    source_name_or_id = data_dict.get('id') or data_dict.get('name')
     schema = context.get('schema') or default_harvest_source_schema()
 
-    log.info('Harvest source %s update: %r', source_id, data_dict)
-    source = HarvestSource.by_name_or_id(source_id)
+    log.info('Harvest source %s update: %r', source_name_or_id, data_dict)
+    source = HarvestSource.by_name_or_id(source_name_or_id)
     if not source:
-        log.error('Harvest source %s does not exist', source_id)
-        raise NotFound('Harvest source %s does not exist' % source_id)
+        log.error('Harvest source %s does not exist', source_name_or_id)
+        raise NotFound('Harvest source %s does not exist' % source_name_or_id)
     data_dict['id'] = source.id
 
     data, errors = validate(data_dict, schema, context=context)
@@ -67,7 +67,7 @@ def harvest_source_update(context,data_dict):
     # Abort any pending jobs
     if not source.active:
         jobs = HarvestJob.filter(source=source,status=u'New')
-        log.info('Harvest source %s not active, so aborting %i outstanding jobs', source_id, jobs.count())
+        log.info('Harvest source %s not active, so aborting %i outstanding jobs', source_name_or_id, jobs.count())
         if jobs:
             for job in jobs:
                 job.status = u'Aborted'

@@ -97,14 +97,15 @@ class ViewController(BaseController):
             return self.new(data_dict, errors, error_summary)
 
     def edit(self, id, data = None,errors = None, error_summary = None):
+        name_or_id = id
 
         if ('save' in request.params) and not data:
-            return self._save_edit(id)
+            return self._save_edit(name_or_id)
 
         try:
             context = {'model':model, 'user':c.user, 'include_status':False}
 
-            old_data = p.toolkit.get_action('harvest_source_show')(context, {'id':id})
+            old_data = p.toolkit.get_action('harvest_source_show')(context, {'id': name_or_id})
         except p.toolkit.ObjectNotFound:
             abort(404, _('Harvest Source not found'))
         except p.toolkit.NotAuthorized:
@@ -129,13 +130,10 @@ class ViewController(BaseController):
         c.source_id = id
         return render('source/edit.html', extra_vars=vars)
 
-    def _save_edit(self,id):
+    def _save_edit(self, name_or_id):
         try:
             data_dict = dict(request.params)
-            if is_uuid(id):
-                data_dict['id'] = id
-            else:
-                data_dict['name'] = id
+            data_dict['id'] = name_or_id
             data_dict['user_id'] = c.userobj.id
             context = {'model':model, 'user':c.user, 'session':model.Session,
                        'schema':harvest_source_form_schema()}
@@ -171,12 +169,13 @@ class ViewController(BaseController):
             #log.info(_('Incorrect form fields posted'))
             #raise DataError(data_dict)
 
-    def read(self,id):
+    def read(self, id):
+        name_or_id = id
         try:
-            show_job_status = h.check_access('harvest_job_create', {'source_id':id})
+            show_job_status = h.check_access('harvest_job_create', {'source_id': name_or_id})
             context = {'model':model, 'user':c.user,
                        'include_job_status': show_job_status}
-            c.source = p.toolkit.get_action('harvest_source_show')(context, {'id':id})
+            c.source = p.toolkit.get_action('harvest_source_show')(context, {'id': name_or_id})
 
             c.page = Page(
                 collection=c.source['status']['datasets'],
