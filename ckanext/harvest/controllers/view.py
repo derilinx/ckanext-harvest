@@ -134,7 +134,7 @@ class ViewController(BaseController):
         try:
             data_dict = dict(request.params)
             data_dict['id'] = name_or_id
-            data_dict['user_id'] = c.userobj.id
+            data_dict['user_id'] = c.userobj.id if c.userobj else None
             context = {'model':model, 'user':c.user, 'session':model.Session,
                        'schema':harvest_source_form_schema()}
 
