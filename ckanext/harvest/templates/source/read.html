@@ -180,12 +180,12 @@
         <tr>
             <th>Next harvest</th>
             <td>
-              <py:if test="c.source.next_run">
+              <div py:if="c.source.next_run">
                 Next automatic run: ${h.render_datetime(c.source.next_run, with_hours=True)}
-              </py:if>
-              <py:if test="c.source.status.next_harvest_job">
+              </div>
+              <div py:if="c.source.status.next_harvest_job">
                 Scheduled to start within 10 minutes
-              </py:if>
+              </div>
             </td>
         </tr>
         <tr>

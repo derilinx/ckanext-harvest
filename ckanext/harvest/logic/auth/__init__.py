@@ -6,7 +6,7 @@ def get_source_object(context, data_dict = {}):
     if not 'source' in context:
         model = context['model']
         id = data_dict.get('id',None)
-        source = HarvestSource.get(id)
+        source = HarvestSource.by_name_or_id(id)
         if not source:
             raise NotFound
     else:
