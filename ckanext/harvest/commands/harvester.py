@@ -357,7 +357,7 @@ class Harvester(CkanCommand):
                     sys.exit(1)
                 print 'Closing old job cleanly'
                 job = get_action('harvest_job_abort')(context,
-                                                    {'source_id': source_id})
+                                                    {'source_id': source['id']})
                 print 'Starting new job'
                 job = get_action('harvest_job_create')(context, {'source_id': source['id']})
 
