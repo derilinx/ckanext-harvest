@@ -151,7 +151,7 @@ class ViewController(BaseController):
         except p.toolkit.ValidationError,e:
             errors = e.error_dict
             error_summary = e.error_summary if hasattr(e,'error_summary') else None
-            return self.edit(id,data_dict, errors, error_summary)
+            return self.edit(name_or_id, data_dict, errors, error_summary)
 
     def _check_data_dict(self, data_dict):
         '''Check if the return data is correct'''
