@@ -267,14 +267,23 @@ def harvest_jobs_run(context,data_dict):
 
 
 def harvest_job_abort(context, data_dict):
+    '''Marks a job that is Running as "Aborted" so that the source can be
+    restarted afresh.  Does not actually stop running or queued harvest
+    fetchs/objects.
+
+    :param source_id: the name or id of the harvest source with a job to abort
+    :type source_id: string
+    '''
 
     check_access('harvest_job_abort', context, data_dict)
 
     model = context['model']
 
     source_id = data_dict.get('source_id', None)
+    source = harvest_source_show(context, {'id': source_id})
+
     jobs = get_action('harvest_job_list')(context,
-                                          {'source_id': source_id})
+                                          {'source_id': source['id']})
     if not jobs:
         raise NotFound('Error: source has no jobs')
     job = jobs[0]  # latest one
@@ -283,9 +292,11 @@ def harvest_job_abort(context, data_dict):
         job_obj = HarvestJob.get(job['id'])
         job_obj.status = new_status = 'Aborted'
         model.repo.commit_and_remove()
-        log.info('Changed the harvest job status to "{0}"'.format(new_status))
+        log.info('Changed the harvest job status from "%s" to "%s"',
+                 job['status'], new_status)
     else:
-        log.info('Nothing to do')
+        log.info('Nothing to do. Source %s status is: "%s"',
+                 job['id'], job['status'])
 
     job_obj = HarvestJob.get(job['id'])
     return harvest_job_dictize(job_obj, context)
