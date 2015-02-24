@@ -354,6 +354,7 @@ def define_harvester_tables():
         Column('gather_finished', types.DateTime),
         Column('finished', types.DateTime),
         Column('source_id', types.UnicodeText, ForeignKey('harvest_source.id')),
+        # status: New, Running, Finished, Aborted (DGU-only)
         Column('status', types.UnicodeText, default=u'New', nullable=False),
     )
     # A harvest_object contains a representation of one dataset during a
@@ -374,6 +375,7 @@ def define_harvester_tables():
         Column('fetch_finished', types.DateTime),
         Column('import_started', types.DateTime),
         Column('import_finished', types.DateTime),
+        # state: WAITING, FETCH, IMPORT, COMPLETE, ERROR, ABORTED (DGU-only)
         Column('state', types.UnicodeText, default=u'WAITING'),
         Column('metadata_modified_date', types.DateTime),
         Column('retry_times',types.Integer, default=0),

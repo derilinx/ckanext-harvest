@@ -267,9 +267,11 @@ def harvest_jobs_run(context,data_dict):
 
 
 def harvest_job_abort(context, data_dict):
-    '''Marks a job that is Running as "Aborted" so that the source can be
-    restarted afresh.  Does not actually stop running or queued harvest
-    fetchs/objects.
+    '''Aborts a harvest job. Given a harvest source_id, it looks for the latest
+    one and (assuming it is not Finished) marks it as Aborted. It also marks
+    any of that source's harvest objects and (if not complete or error) marks
+    them "ABORTED", so any left in limbo are cleaned up. Does not actually stop
+    running any queued harvest fetchs/objects.
 
     :param source_id: the name or id of the harvest source with a job to abort
     :type source_id: string
@@ -282,6 +284,8 @@ def harvest_job_abort(context, data_dict):
     source_id = data_dict.get('source_id', None)
     source = harvest_source_show(context, {'id': source_id})
 
+    # HarvestJob set to 'Aborted'
+
     jobs = get_action('harvest_job_list')(context,
                                           {'source_id': source['id']})
     if not jobs:
@@ -289,14 +293,29 @@ def harvest_job_abort(context, data_dict):
     job = jobs[0]  # latest one
 
     if job['status'] not in ('Finished', 'Aborted'):
+        # i.e. New or Running
         job_obj = HarvestJob.get(job['id'])
         job_obj.status = new_status = 'Aborted'
         model.repo.commit_and_remove()
-        log.info('Changed the harvest job status from "%s" to "%s"',
+        log.info('Harvest job changed status from "%s" to "%s"',
                  job['status'], new_status)
     else:
-        log.info('Nothing to do. Source %s status is: "%s"',
+        log.info('Harvest job unchanged. Source %s status is: "%s"',
                  job['id'], job['status'])
+
+    # HarvestObjects set to ABORTED
+    job_obj = HarvestJob.get(job['id'])
+    objs = job_obj.objects
+    for obj in objs:
+        if obj.state not in ('COMPLETE', 'ERROR', 'ABORTED'):
+            old_state = obj.state
+            obj.state = 'ABORTED'
+            log.info('Harvest object changed state from "%s" to "%s": %s',
+                     old_state, obj.state, obj.id)
+        else:
+            log.info('Harvest object not changed from "%s": %s',
+                     obj.state, obj.id)
+    model.repo.commit_and_remove()
 
     job_obj = HarvestJob.get(job['id'])
     return harvest_job_dictize(job_obj, context)
