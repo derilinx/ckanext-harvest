@@ -268,7 +268,7 @@ class Harvester(CkanCommand):
 
     def import_stage(self):
         id_ = None
-        id_types = ('source_id', 'harvest_object_id', 'guid')
+        id_types = ('source', 'harvest_object_id', 'guid')
         if len(self.args) == 1:
             # i.e all sources/objects
             pass
@@ -281,7 +281,7 @@ class Harvester(CkanCommand):
                 print 'ERROR: ID type "%s" not allowed. Choose from: %s' % \
                       (id_type, id_types)
                 sys.exit(1)
-            if id_type == 'source_id':
+            if id_type == 'source':
                 id_ = unicode(self.args[2])
             elif id_type == 'harvest_object_id':
                 id_ = unicode(self.args[2])

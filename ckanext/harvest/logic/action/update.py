@@ -94,7 +94,8 @@ def harvest_objects_import(context,data_dict):
 
     model = context['model']
     session = context['session']
-    source_id = data_dict.get('source_id',None)
+    # source_id param accepted for backwards API compatibility
+    source_name_or_id = data_dict.get('source') or data_dict.get('source_id')
     guid = data_dict.get('guid',None)
     harvest_object_id = data_dict.get('harvest_object_id',None)
     package_id_or_name = data_dict.get('package_id',None)
@@ -107,14 +108,14 @@ def harvest_objects_import(context,data_dict):
         last_objects_ids = session.query(HarvestObject.id) \
                 .filter(HarvestObject.guid==guid) \
                 .filter(HarvestObject.current==True)
-    elif source_id:
-        source = HarvestSource.get(source_id)
+    elif source_name_or_id:
+        source = HarvestSource.by_name_or_id(source_name_or_id)
         if not source:
-            log.error('Harvest source %s does not exist', source_id)
-            raise NotFound('Harvest source %s does not exist' % source_id)
+            log.error('Harvest source %s does not exist', source_name_or_id)
+            raise NotFound('Harvest source %s does not exist' % source_name_or_id)
 
         if not source.active:
-            log.warn('Harvest source %s is not active.', source_id)
+            log.warn('Harvest source %s is not active.', source_name_or_id)
             raise Exception('This harvest source is not active')
 
         last_objects_ids = session.query(HarvestObject.id) \
