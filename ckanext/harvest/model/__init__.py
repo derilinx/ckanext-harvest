@@ -367,7 +367,7 @@ def define_harvester_tables():
         # within this CKAN.
         Column('guid', types.UnicodeText, default=u''),
         # When you harvest a dataset multiple times, only the latest will be
-        # flagged 'current'
+        # flagged 'current'. The import_stage reads and writes it.
         Column('current',types.Boolean,default=False),
         Column('gathered', types.DateTime, default=datetime.datetime.utcnow),
         Column('fetch_started', types.DateTime),

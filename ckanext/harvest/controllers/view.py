@@ -209,7 +209,7 @@ class ViewController(BaseController):
         try:
             context = {'model':model, 'user':c.user, 'session':model.Session}
             p.toolkit.get_action('harvest_job_create')(context,{'source_id':id})
-            h.flash_success(_('Refresh requested, harvesting will take place within 15 minutes.'))
+            h.flash_success(_('Refresh requested. Harvesting will start within 10 minutes.'))
         except p.toolkit.ObjectNotFound:
             abort(404,_('Harvest source not found'))
         except p.toolkit.NotAuthorized,e:

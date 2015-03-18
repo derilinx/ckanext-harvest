@@ -368,6 +368,9 @@ class Harvester(CkanCommand):
         # gather
         logging.getLogger('ckan.cli').info('Gather')
         message = gather_consumer.fetch()
+        if not message:
+            print 'Could not get gather message - probably because the gather process is running elsewhere.'
+            sys.exit(1)
         queue.gather_callback({'harvest_job_id': job['id']}, message)
 
         # fetch
