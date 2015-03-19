@@ -214,7 +214,7 @@ def fetch_callback(message_data, message):
                     obj.save()
                 #TODO: retry times?
                 if success_fetch == True:
-                    # If no errors where found, call the import method
+                    # If no errors were found, call the import method
                     obj.import_started = datetime.datetime.utcnow()
                     obj.state = "IMPORT"
                     obj.save()

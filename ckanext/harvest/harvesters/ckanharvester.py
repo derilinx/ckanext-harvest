@@ -1,6 +1,8 @@
 import urllib2
 import dateutil.parser
 
+from paste.deploy.converters import asbool
+
 from ckan.lib.base import c
 from ckan import model
 from ckan.model import Session, Package
@@ -257,21 +259,22 @@ class CKANHarvester(HarvesterBase):
                 harvest_object)
             return False
 
-        # Check if the dataset needs to be harvested at all
+        # Skip datasets that are flagged dgu_harvest_me=false
         ignore_dataset = False
         if isinstance(dataset.get('extras'), dict):
-            for key, value in dataset['extras'].iteritems():
-                if key == 'dgu_harvest_me' and value == "false":
-                    ignore_dataset = True
-                    break
+            # CKAN API v2
+            if asbool(dataset['extras'].get('dgu_harvest_me') or True) is False:
+                ignore_dataset = True
         elif isinstance(dataset.get('extras'), list):
+            # CKAN API v3
             for extra in dataset['extras']:
-                if extra['key'] == 'dgu_harvest_me' and extra['value'] == "false":
+                if extra['key'] == 'dgu_harvest_me' and \
+                        asbool(extra['value']) is False:
                     ignore_dataset = True
                     break
         if ignore_dataset:
             log.debug('Skipping dataset %s as required by the dgu_harvest_me extra' % dataset['name'])
-            return False
+            return 'unchanged'
 
         # Save the fetched contents in the HarvestObject
         harvest_object.content = content
