@@ -249,11 +249,6 @@ class CKANHarvester(HarvesterBase):
             # _get_package has already saved an object_error
             return False
 
-        # Save the fetched contents in the HarvestObject
-        harvest_object.content = content
-        harvest_object.save()
-
-        # Extract the modification date
         try:
             dataset = json.loads(content)
         except ValueError, e:
@@ -261,6 +256,28 @@ class CKANHarvester(HarvesterBase):
                 'CKAN content could not be deserialized: %s: %r' % (url, e),
                 harvest_object)
             return False
+
+        # Check if the dataset needs to be harvested at all
+        ignore_dataset = False
+        if isinstance(dataset.get('extras'), dict):
+            for key, value in dataset['extras'].iteritems():
+                if key == 'dgu_harvest_me' and value == "false":
+                    ignore_dataset = True
+                    break
+        elif isinstance(dataset.get('extras'), list):
+            for extra in dataset['extras']:
+                if extra['key'] == 'dgu_harvest_me' and extra['value'] == "false":
+                    ignore_dataset = True
+                    break
+        if ignore_dataset:
+            log.debug('Skipping dataset %s as required by the dgu_harvest_me extra' % dataset['name'])
+            return False
+
+        # Save the fetched contents in the HarvestObject
+        harvest_object.content = content
+        harvest_object.save()
+
+        # Extract the modification date
         modified = dataset.get('metadata_modified')
         # e.g. "2014-05-10T02:22:05.483412"
         if not modified:
