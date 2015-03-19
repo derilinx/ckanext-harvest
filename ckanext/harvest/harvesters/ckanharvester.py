@@ -1,6 +1,8 @@
 import urllib2
 import dateutil.parser
 
+from paste.deploy.converters import asbool
+
 from ckan.lib.base import c
 from ckan import model
 from ckan.model import Session, Package
@@ -249,11 +251,6 @@ class CKANHarvester(HarvesterBase):
             # _get_package has already saved an object_error
             return False
 
-        # Save the fetched contents in the HarvestObject
-        harvest_object.content = content
-        harvest_object.save()
-
-        # Extract the modification date
         try:
             dataset = json.loads(content)
         except ValueError, e:
@@ -261,6 +258,29 @@ class CKANHarvester(HarvesterBase):
                 'CKAN content could not be deserialized: %s: %r' % (url, e),
                 harvest_object)
             return False
+
+        # Skip datasets that are flagged dgu_harvest_me=false
+        ignore_dataset = False
+        if isinstance(dataset.get('extras'), dict):
+            # CKAN API v2
+            if asbool(dataset['extras'].get('dgu_harvest_me') or True) is False:
+                ignore_dataset = True
+        elif isinstance(dataset.get('extras'), list):
+            # CKAN API v3
+            for extra in dataset['extras']:
+                if extra['key'] == 'dgu_harvest_me' and \
+                        asbool(extra['value']) is False:
+                    ignore_dataset = True
+                    break
+        if ignore_dataset:
+            log.debug('Skipping dataset %s as required by the dgu_harvest_me extra' % dataset['name'])
+            return 'unchanged'
+
+        # Save the fetched contents in the HarvestObject
+        harvest_object.content = content
+        harvest_object.save()
+
+        # Extract the modification date
         modified = dataset.get('metadata_modified')
         # e.g. "2014-05-10T02:22:05.483412"
         if not modified:
