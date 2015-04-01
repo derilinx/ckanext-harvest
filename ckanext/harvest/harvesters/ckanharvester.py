@@ -488,7 +488,7 @@ class CKANHarvester(HarvesterBase):
             themes = categorize_package(package_dict)
             if themes:
                 package_dict['extras'][PRIMARY_THEME] = themes[0]
-                package_dict['extras'][SECONDARY_THEMES] = themes[1:]
+                package_dict['extras'][SECONDARY_THEMES] = json.dumps(themes[1:])
         except ImportError:
             pass
  

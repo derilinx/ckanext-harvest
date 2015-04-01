@@ -3,6 +3,7 @@ import datetime
 import uuid
 
 from sqlalchemy.sql import update, bindparam
+import pylons
 
 from ckan import logic
 from ckan import model
@@ -405,6 +406,14 @@ class HarvesterBase(SingletonPlugin):
                 if isinstance(value, basestring):
                     value = value.format(env)
                 package_dict_defaults['extras'][key] = value
+        if existing_dataset:
+            extras_kept = set(
+                pylons.config.get('ckan.harvest.extras_not_overwritten', '')
+                .split(' '))
+            for extra_key in extras_kept:
+                if extra_key in existing_dataset.extras:
+                    package_dict_defaults['extras'][extra_key] = \
+                        existing_dataset.extras.get(extra_key)
 
         if status in ('new', 'changed'):
             # There are 2 circumstances that the status is wrong:
