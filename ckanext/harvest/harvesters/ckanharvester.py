@@ -127,6 +127,7 @@ class CKANHarvester(HarvesterBase):
         return config
 
     def gather_stage(self, harvest_job):
+        log = logging.getLogger(__name__ + '.gather')
         log.debug('In CKANHarvester gather_stage (%s)', harvest_job.source.url)
         get_all_packages = True
         package_ids = []
@@ -161,9 +162,11 @@ class CKANHarvester(HarvesterBase):
                 # but try this one anyway, as it falls back to the next method.
 
                 try:
+                    log.debug('Trying revision API: %s', url)
                     content = self._get_content(url)
 
                     revision_ids = json.loads(content)
+                    log.debug('Revision API returned %s revisions', len(revision_ids))
                     if len(revision_ids):
                         for revision_id in revision_ids:
                             url = base_rest_url + '/revision/%s' % revision_id
@@ -179,6 +182,10 @@ class CKANHarvester(HarvesterBase):
                             for package_id in revision['packages']:
                                 if not package_id in package_ids:
                                     package_ids.append(package_id)
+                        log.debug('Revision API returned %s datasets', len(package_ids))
+                        # NB Some of these datasets may have been deleted, so
+                        # you'll get a 403 error when you try to access it
+                        # later on.
                     else:
                         log.info('No packages have been updated on the remote CKAN instance since the last harvest job')
                         return None
@@ -223,8 +230,10 @@ class CKANHarvester(HarvesterBase):
             self.save_gather_error('%r' % e.message, harvest_job)
 
     def _get_all_packages(self, base_url, harvest_job):
+        log = logging.getLogger(__name__ + '.gather')
         '''Request the IDs of all remote packages'''
         url = base_url + self._get_rest_api_offset() + '/package'
+        log.debug('Getting list of datasets: %s', url)
         try:
             content = self._get_content(url)
         except Exception, e:
@@ -240,6 +249,7 @@ class CKANHarvester(HarvesterBase):
             return None
 
     def fetch_stage(self, harvest_object):
+        log = logging.getLogger(__name__ + '.fetch')
         log.debug('In CKANHarvester fetch_stage')
 
         self._set_config(harvest_object.job.source.config)
@@ -309,7 +319,7 @@ class CKANHarvester(HarvesterBase):
                 # look in the extra for backward compatibility only
             if not self.config.get('force_all'):
                 if previous_modified == modified:
-                    log.info('Package with GUID %s not updated, skipping...' %
+                    log.info('Skipping unchanged package with GUID %s' %
                             harvest_object.guid)
                     return 'unchanged'  # it will not carry on to import_stage
 
@@ -338,7 +348,7 @@ class CKANHarvester(HarvesterBase):
             return url, self._get_content(url)
         except Exception, e:
             self._save_object_error(
-                'Unable to get content for package: %s: %r' % (url, e),
+                'Unable to get content for package: %s: %s' % (url, e),
                 harvest_object)
             return None, None
 
@@ -358,6 +368,7 @@ class CKANHarvester(HarvesterBase):
 
     def get_package_dict(self, harvest_object, package_dict_defaults,
                          source_config, existing_dataset):
+        log = logging.getLogger(__name__ + '.import.get_package_dict')
         package_dict_harvested = self.get_harvested_package_dict(harvest_object)
         if package_dict_harvested is None:
             return
