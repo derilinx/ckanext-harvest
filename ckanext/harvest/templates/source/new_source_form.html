@@ -40,11 +40,13 @@ error_summary
         {% if data.type == harvester['name'] %}
            {% set checked = True %}
         {% endif %}
-        <label class="radio">
+        <p>
+         <label class="radio">
           <input type="radio" name="type" value="{{ harvester['name'] }}" {{ "checked " if checked }} data-module="harvest-type-change">
           {{ harvester['title'] }}
           <i class="icon-question-sign muted" title="{{ harvester['description'] }}" data-toggle="tooltip"></i>
-        </label>
+         </label>
+        </p>
       {% endfor %}
       {% if error and error is iterable %}<strong class="error-inline">{{ error|join(', ') }}</strong>{% endif %}
     </div>

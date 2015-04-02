@@ -175,6 +175,11 @@ label {
 .harvest-types label.radio {
     font-weight: normal;
     margin-bottom: 10px;
+    padding-top: 3px;
+    display:inline-block;
+}
+.harvest-types p {
+    margin: 0px;
 }
 input[type="file"],
 input[type="image"],
