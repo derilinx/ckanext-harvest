@@ -268,7 +268,7 @@ class Harvester(CkanCommand):
 
     def import_stage(self):
         id_ = None
-        id_types = ('source_id', 'harvest_object_id', 'guid')
+        id_types = ('source', 'harvest_object_id', 'guid')
         if len(self.args) == 1:
             # i.e all sources/objects
             pass
@@ -281,7 +281,7 @@ class Harvester(CkanCommand):
                 print 'ERROR: ID type "%s" not allowed. Choose from: %s' % \
                       (id_type, id_types)
                 sys.exit(1)
-            if id_type == 'source_id':
+            if id_type == 'source':
                 id_ = unicode(self.args[2])
             elif id_type == 'harvest_object_id':
                 id_ = unicode(self.args[2])
@@ -329,11 +329,15 @@ class Harvester(CkanCommand):
                     msg.ack()
                     msg = consumer.fetch()
 
+        # get the source id first (source_id may be a source.name)
+        context = {'model': model, 'user': self.admin_user['name'],
+                   'session': model.Session}
+        source = get_action('harvest_source_show')(context,
+                                                   {'id': source_id})
         # create harvest job
-        context = {'model': model, 'session': model.Session,
-                   'user': self.admin_user['name']}
         try:
-            job = get_action('harvest_job_create')(context, {'source_id': source_id})
+            job = get_action('harvest_job_create')(context,
+                                                   {'source_id': source['id']})
         except HarvestJobExists:
             # Job has been created already - we can probably use it.
             # If job status is 'New' then it is ready to run.
@@ -341,7 +345,7 @@ class Harvester(CkanCommand):
             context = {'model': model, 'user': self.admin_user['name'],
                        'session': model.Session}
             jobs = get_action('harvest_job_list')(context,
-                                                {'source_id': source_id})
+                                                 {'source_id': source['id']})
             job = jobs[0]  # latest one
             if job['status'] != 'New':
                 # Non-new status happens when the job is in progress or has
@@ -353,17 +357,20 @@ class Harvester(CkanCommand):
                     sys.exit(1)
                 print 'Closing old job cleanly'
                 job = get_action('harvest_job_abort')(context,
-                                                    {'source_id': source_id})
+                                                    {'source_id': source['id']})
                 print 'Starting new job'
-                job = get_action('harvest_job_create')(context, {'source_id': source_id})
+                job = get_action('harvest_job_create')(context, {'source_id': source['id']})
 
         # run - sends the job to the gather queue
-        jobs = get_action('harvest_jobs_run')(context, {'source_id': source_id})
+        jobs = get_action('harvest_jobs_run')(context, {'source_id': source['id']})
         assert jobs
 
         # gather
         logging.getLogger('ckan.cli').info('Gather')
         message = gather_consumer.fetch()
+        if not message:
+            print 'Could not get gather message - probably because the gather process is running elsewhere.'
+            sys.exit(1)
         queue.gather_callback({'harvest_job_id': job['id']}, message)
 
         # fetch
@@ -375,7 +382,7 @@ class Harvester(CkanCommand):
             queue.fetch_callback(message.payload, message)
 
         # run - mark the job as finished
-        jobs = get_action('harvest_jobs_run')(context, {'source_id': source_id})
+        jobs = get_action('harvest_jobs_run')(context, {'source_id': source['id']})
 
     def job_abort(self, source_id):
         # Get the latest job

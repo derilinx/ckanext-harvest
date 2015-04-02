@@ -5,10 +5,13 @@ import json
 from ckan.lib.navl.dictization_functions import Invalid, validate
 from ckan.model import Session
 from ckan.plugins import PluginImplementations
+from ckan.lib.navl.dictization_functions import missing
+from ckan.plugins import toolkit as tk
 
 from ckanext.harvest.model import HarvestSource, UPDATE_FREQUENCIES, HarvestJob
 from ckanext.harvest.interfaces import IHarvester
 
+_ = tk._
 log = logging.getLogger(__name__)
 
 
@@ -199,3 +202,29 @@ def harvest_object_extras_validator(value, context):
             raise Invalid('extras must be a dict of strings')
     return value
 
+# Based on package_name_validator
+def harvest_name_validator(key, data, errors, context):
+    model = context["model"]
+    session = context["session"]
+    harvest_source = context.get("harvest_source")
+
+    query = session.query(HarvestSource.name).filter_by(name=data[key])
+    if harvest_source:
+        source_id = harvest_source.id
+    else:
+        source_id = data.get(key[:-1] + ("id",))
+    if source_id and source_id is not missing:
+        query = query.filter(HarvestSource.id != source_id)
+    result = query.first()
+    if result:
+        errors[key].append(_('That name is already in use.'))
+
+    value = data[key]
+    if len(value) < model.PACKAGE_NAME_MIN_LENGTH:
+        raise Invalid(
+            _('Name "%s" length is less than minimum %s') % (value, model.PACKAGE_NAME_MIN_LENGTH)
+        )
+    if len(value) > model.PACKAGE_NAME_MAX_LENGTH:
+        raise Invalid(
+            _('Name "%s" length is more than maximum %s') % (value, model.PACKAGE_NAME_MAX_LENGTH)
+        )

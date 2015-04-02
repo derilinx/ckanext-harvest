@@ -34,22 +34,23 @@ def harvest_source_update(context,data_dict):
     model = context['model']
     session = context['session']
 
-    source_id = data_dict.get('id')
+    source_name_or_id = data_dict.get('id') or data_dict.get('name')
     schema = context.get('schema') or default_harvest_source_schema()
 
-    log.info('Harvest source %s update: %r', source_id, data_dict)
-    source = HarvestSource.get(source_id)
+    log.info('Harvest source %s update: %r', source_name_or_id, data_dict)
+    source = HarvestSource.by_name_or_id(source_name_or_id)
     if not source:
-        log.error('Harvest source %s does not exist', source_id)
-        raise NotFound('Harvest source %s does not exist' % source_id)
+        log.error('Harvest source %s does not exist', source_name_or_id)
+        raise NotFound('Harvest source %s does not exist' % source_name_or_id)
+    data_dict['id'] = source.id
 
-    data, errors = validate(data_dict, schema)
+    data, errors = validate(data_dict, schema, context=context)
 
     if errors:
         session.rollback()
         raise ValidationError(errors,_error_summary(errors))
 
-    fields = ['url','title','type','description','user_id','publisher_id','frequency']
+    fields = ['url','title','type','description','user_id','publisher_id','frequency','name']
     for f in fields:
         if f in data and data[f] is not None:
             if f == 'url':
@@ -66,7 +67,7 @@ def harvest_source_update(context,data_dict):
     # Abort any pending jobs
     if not source.active:
         jobs = HarvestJob.filter(source=source,status=u'New')
-        log.info('Harvest source %s not active, so aborting %i outstanding jobs', source_id, jobs.count())
+        log.info('Harvest source %s not active, so aborting %i outstanding jobs', source_name_or_id, jobs.count())
         if jobs:
             for job in jobs:
                 job.status = u'Aborted'
@@ -93,7 +94,8 @@ def harvest_objects_import(context,data_dict):
 
     model = context['model']
     session = context['session']
-    source_id = data_dict.get('source_id',None)
+    # source_id param accepted for backwards API compatibility
+    source_name_or_id = data_dict.get('source') or data_dict.get('source_id')
     guid = data_dict.get('guid',None)
     harvest_object_id = data_dict.get('harvest_object_id',None)
     package_id_or_name = data_dict.get('package_id',None)
@@ -106,14 +108,14 @@ def harvest_objects_import(context,data_dict):
         last_objects_ids = session.query(HarvestObject.id) \
                 .filter(HarvestObject.guid==guid) \
                 .filter(HarvestObject.current==True)
-    elif source_id:
-        source = HarvestSource.get(source_id)
+    elif source_name_or_id:
+        source = HarvestSource.by_name_or_id(source_name_or_id)
         if not source:
-            log.error('Harvest source %s does not exist', source_id)
-            raise NotFound('Harvest source %s does not exist' % source_id)
+            log.error('Harvest source %s does not exist', source_name_or_id)
+            raise NotFound('Harvest source %s does not exist' % source_name_or_id)
 
         if not source.active:
-            log.warn('Harvest source %s is not active.', source_id)
+            log.warn('Harvest source %s is not active.', source_name_or_id)
             raise Exception('This harvest source is not active')
 
         last_objects_ids = session.query(HarvestObject.id) \
@@ -168,12 +170,12 @@ def _caluclate_next_run(frequency):
     now = datetime.datetime.utcnow()
     if frequency == 'ALWAYS':
         return now
-    if frequency == 'WEEKLY':
-        return now + datetime.timedelta(weeks=1)
-    if frequency == 'BIWEEKLY':
-        return now + datetime.timedelta(weeks=2)
     if frequency == 'DAILY':
         return now + datetime.timedelta(days=1)
+    if frequency == 'WEEKLY':
+        return now + datetime.timedelta(weeks=1)
+    if frequency in ('BIWEEKLY', 'FORTNIGHTLY'):
+        return now + datetime.timedelta(weeks=2)
     if frequency == 'MONTHLY':
         if now.month in (4,6,9,11):
             days = 30
@@ -215,6 +217,12 @@ def harvest_jobs_run(context,data_dict):
 
     if not source_id:
         _make_scheduled_jobs(context, data_dict)
+    else:
+        source = harvest_source_show(context, {'id': source_id})
+        if not source:
+            log.error('Harvest source %s does not exist', source_id)
+            raise NotFound('Harvest source %s does not exist' % source_id)
+        source_id = source['id']
 
     context['return_objects'] = False
 
@@ -228,7 +236,7 @@ def harvest_jobs_run(context,data_dict):
     # resubmit old redis tasks
     resubmit_jobs()
 
-    # Check if there are pending harvest jobs
+    # Check if there are new (i.e. pending) harvest jobs
     jobs = harvest_job_list(context,{'source_id':source_id,'status':u'New'})
     log.info('Number of jobs: %i', len(jobs))
     sent_jobs = []
@@ -238,7 +246,7 @@ def harvest_jobs_run(context,data_dict):
         # Do not raise an exception as that will cause cron (which runs
         # this) to produce an error email.
 
-    # Send each job to the gather queue
+    # Send each new job to the gather queue
     publisher = get_gather_publisher()
     for job in jobs:
         context['include_status'] = False
@@ -260,25 +268,55 @@ def harvest_jobs_run(context,data_dict):
 
 
 def harvest_job_abort(context, data_dict):
+    '''Aborts a harvest job. Given a harvest source_id, it looks for the latest
+    one and (assuming it is not Finished) marks it as Aborted. It also marks
+    any of that source's harvest objects and (if not complete or error) marks
+    them "ABORTED", so any left in limbo are cleaned up. Does not actually stop
+    running any queued harvest fetchs/objects.
+
+    :param source_id: the name or id of the harvest source with a job to abort
+    :type source_id: string
+    '''
 
     check_access('harvest_job_abort', context, data_dict)
 
     model = context['model']
 
     source_id = data_dict.get('source_id', None)
+    source = harvest_source_show(context, {'id': source_id})
+
+    # HarvestJob set to 'Aborted'
+
     jobs = get_action('harvest_job_list')(context,
-                                          {'source_id': source_id})
+                                          {'source_id': source['id']})
     if not jobs:
         raise NotFound('Error: source has no jobs')
     job = jobs[0]  # latest one
 
     if job['status'] not in ('Finished', 'Aborted'):
+        # i.e. New or Running
         job_obj = HarvestJob.get(job['id'])
         job_obj.status = new_status = 'Aborted'
         model.repo.commit_and_remove()
-        log.info('Changed the harvest job status to "{0}"'.format(new_status))
+        log.info('Harvest job changed status from "%s" to "%s"',
+                 job['status'], new_status)
     else:
-        log.info('Nothing to do')
+        log.info('Harvest job unchanged. Source %s status is: "%s"',
+                 job['id'], job['status'])
+
+    # HarvestObjects set to ABORTED
+    job_obj = HarvestJob.get(job['id'])
+    objs = job_obj.objects
+    for obj in objs:
+        if obj.state not in ('COMPLETE', 'ERROR', 'ABORTED'):
+            old_state = obj.state
+            obj.state = 'ABORTED'
+            log.info('Harvest object changed state from "%s" to "%s": %s',
+                     old_state, obj.state, obj.id)
+        else:
+            log.info('Harvest object not changed from "%s": %s',
+                     obj.state, obj.id)
+    model.repo.commit_and_remove()
 
     job_obj = HarvestJob.get(job['id'])
     return harvest_job_dictize(job_obj, context)

@@ -33,7 +33,7 @@ def harvest_objects_import(context, data_dict):
     if not source_id:
         return {'success': False, 'msg': _('Only sysadmins can reimport all harvest objects') % str(user)}
 
-    source = HarvestSource.get(source_id)
+    source = HarvestSource.by_name_or_id(source_id)
     if not source:
         raise p.toolkit.ObjectNotFound
 
@@ -58,7 +58,7 @@ def harvest_jobs_run(context, data_dict):
     if not source_id:
         return {'success': False, 'msg': _('Only sysadmins can run all harvest jobs') % str(user)}
 
-    source = HarvestSource.get(source_id)
+    source = HarvestSource.by_name_or_id(source_id)
     if not source:
         raise p.toolkit.ObjectNotFound
 

@@ -21,7 +21,9 @@ from ckan.model.domain_object import DomainObject
 from ckan.model.package import Package
 from ckan.lib.munge import munge_title_to_name
 
-UPDATE_FREQUENCIES = ['MANUAL','MONTHLY','WEEKLY','BIWEEKLY','DAILY', 'ALWAYS']
+UPDATE_FREQUENCIES = ['MANUAL','MONTHLY','FORTNIGHTLY','WEEKLY','DAILY']
+# DGU removes 'ALWAYS' as it is far too often
+# DGU changes 'BIWEEKLY' to 'FORTNIGHTLY' as the former is ambiguous in UK
 
 log = logging.getLogger(__name__)
 
@@ -80,6 +82,9 @@ def setup():
             if not 'frequency' in [column['name'] for column in columns]:
                 log.debug('Harvest tables need to be updated')
                 migrate_v3()
+            if not 'name' in [column['name'] for column in columns]:
+                log.debug('Harvest tables need to be updated to v3.1_dgu')
+                migrate_v3_1_dgu()
 
             # DGU HACK - we are not converting from harvest sources to datasets so
             # this is commented out
@@ -130,6 +135,12 @@ class HarvestSource(HarvestDomainObject):
                (self.id, self.title, self.url, self.active)
     def __str__(self):
         return str(self.__repr__())
+
+    @classmethod
+    def by_name_or_id(cls, name_or_id):
+        return cls.filter(name=name_or_id).first() or \
+            cls.filter(id=name_or_id).first()
+
 
 class HarvestJob(HarvestDomainObject):
     '''A Harvesting Job is performed in two phases. In first place, the
@@ -322,6 +333,7 @@ def define_harvester_tables():
 
     harvest_source_table = Table('harvest_source', metadata,
         Column('id', types.UnicodeText, primary_key=True, default=make_uuid),
+        Column('name', types.Unicode(100), unique=True),
         Column('url', types.UnicodeText, nullable=False),
         Column('title', types.UnicodeText, default=u''),
         Column('description', types.UnicodeText, default=u''),
@@ -342,6 +354,7 @@ def define_harvester_tables():
         Column('gather_finished', types.DateTime),
         Column('finished', types.DateTime),
         Column('source_id', types.UnicodeText, ForeignKey('harvest_source.id')),
+        # status: New, Running, Finished, Aborted (DGU-only)
         Column('status', types.UnicodeText, default=u'New', nullable=False),
     )
     # A harvest_object contains a representation of one dataset during a
@@ -354,7 +367,7 @@ def define_harvester_tables():
         # within this CKAN.
         Column('guid', types.UnicodeText, default=u''),
         # When you harvest a dataset multiple times, only the latest will be
-        # flagged 'current'
+        # flagged 'current'. The import_stage reads and writes it.
         Column('current',types.Boolean,default=False),
         Column('gathered', types.DateTime, default=datetime.datetime.utcnow),
         Column('fetch_started', types.DateTime),
@@ -362,6 +375,7 @@ def define_harvester_tables():
         Column('fetch_finished', types.DateTime),
         Column('import_started', types.DateTime),
         Column('import_finished', types.DateTime),
+        # state: WAITING, FETCH, IMPORT, COMPLETE, ERROR, ABORTED (DGU-only)
         Column('state', types.UnicodeText, default=u'WAITING'),
         Column('metadata_modified_date', types.DateTime),
         Column('retry_times',types.Integer, default=0),
@@ -605,6 +619,14 @@ ALTER TABLE harvest_object_error
     conn.execute(statement)
     Session.commit()
     log.info('Harvest tables migrated to v3')
+
+def migrate_v3_1_dgu():
+    log.debug('Migrating harvest tables to v3.1_dgu.')
+    conn = Session.connection()
+    statement = 'ALTER TABLE harvest_source ADD COLUMN name character varying(100);'
+    statement += 'ALTER TABLE harvest_source ADD UNIQUE (name);'
+    conn.execute(statement)
+    log.info('Harvest tables migrated to v3.1_dgu')
 
 class PackageIdHarvestSourceIdMismatch(Exception):
     """

@@ -68,8 +68,7 @@ class ViewController(BaseController):
 
         vars = {'data': data, 'errors': errors, 'error_summary': error_summary, 'harvesters': harvesters_info}
 
-        c.form = render('source/new_source_form.html', extra_vars=vars)
-        return render('source/new.html')
+        return render('source/new.html', extra_vars=vars)
 
     def _save_new(self):
         try:
@@ -87,7 +86,7 @@ class ViewController(BaseController):
 
             h.flash_success(_('New harvest source added successfully. '
                     'The first harvest has now been scheduled.'))
-            redirect('/harvest/%s' % source['id'])
+            redirect('/harvest/%s' % data_dict['name'])
         except p.toolkit.NotAuthorized,e:
             abort(401,self.not_auth_message)
         except DataError,e:
@@ -98,14 +97,15 @@ class ViewController(BaseController):
             return self.new(data_dict, errors, error_summary)
 
     def edit(self, id, data = None,errors = None, error_summary = None):
+        name_or_id = id
 
         if ('save' in request.params) and not data:
-            return self._save_edit(id)
+            return self._save_edit(name_or_id)
 
         try:
             context = {'model':model, 'user':c.user, 'include_status':False}
 
-            old_data = p.toolkit.get_action('harvest_source_show')(context, {'id':id})
+            old_data = p.toolkit.get_action('harvest_source_show')(context, {'id': name_or_id})
         except p.toolkit.ObjectNotFound:
             abort(404, _('Harvest Source not found'))
         except p.toolkit.NotAuthorized:
@@ -128,21 +128,20 @@ class ViewController(BaseController):
 
         c.source_title = old_data.get('title') if old_data else ''
         c.source_id = id
-        c.form = render('source/new_source_form.html', extra_vars=vars)
-        return render('source/edit.html')
+        return render('source/edit.html', extra_vars=vars)
 
-    def _save_edit(self,id):
+    def _save_edit(self, name_or_id):
         try:
             data_dict = dict(request.params)
-            data_dict['id'] = id
-            data_dict['user_id'] = c.userobj.id
+            data_dict['id'] = name_or_id
+            data_dict['user_id'] = c.userobj.id if c.userobj else None
             context = {'model':model, 'user':c.user, 'session':model.Session,
                        'schema':harvest_source_form_schema()}
 
             p.toolkit.get_action('harvest_source_update')(context,data_dict)
 
             h.flash_success(_('Harvest source edited successfully.'))
-            redirect('/harvest/%s' %id)
+            redirect('/harvest/%s' % data_dict['name'])
         except p.toolkit.NotAuthorized,e:
             abort(401,self.not_auth_message)
         except DataError,e:
@@ -152,7 +151,7 @@ class ViewController(BaseController):
         except p.toolkit.ValidationError,e:
             errors = e.error_dict
             error_summary = e.error_summary if hasattr(e,'error_summary') else None
-            return self.edit(id,data_dict, errors, error_summary)
+            return self.edit(name_or_id, data_dict, errors, error_summary)
 
     def _check_data_dict(self, data_dict):
         '''Check if the return data is correct'''
@@ -170,12 +169,13 @@ class ViewController(BaseController):
             #log.info(_('Incorrect form fields posted'))
             #raise DataError(data_dict)
 
-    def read(self,id):
+    def read(self, id):
+        name_or_id = id
         try:
-            show_job_status = h.check_access('harvest_job_create', {'source_id':id})
+            show_job_status = h.check_access('harvest_job_create', {'source_id': name_or_id})
             context = {'model':model, 'user':c.user,
                        'include_job_status': show_job_status}
-            c.source = p.toolkit.get_action('harvest_source_show')(context, {'id':id})
+            c.source = p.toolkit.get_action('harvest_source_show')(context, {'id': name_or_id})
 
             c.page = Page(
                 collection=c.source['status']['datasets'],
@@ -209,7 +209,7 @@ class ViewController(BaseController):
         try:
             context = {'model':model, 'user':c.user, 'session':model.Session}
             p.toolkit.get_action('harvest_job_create')(context,{'source_id':id})
-            h.flash_success(_('Refresh requested, harvesting will take place within 15 minutes.'))
+            h.flash_success(_('Refresh requested. Harvesting will start within 10 minutes.'))
         except p.toolkit.ObjectNotFound:
             abort(404,_('Harvest source not found'))
         except p.toolkit.NotAuthorized,e:
@@ -254,3 +254,12 @@ class ViewController(BaseController):
         except Exception, e:
             msg = 'An error occurred: [%s]' % str(e)
             abort(500,msg)
+
+uuid_re = None
+
+def is_uuid(ref):
+    global uuid_re
+    if not uuid_re:
+        uuid_re = re.compile(
+            '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}')
+    return bool(uuid_re.match(ref))

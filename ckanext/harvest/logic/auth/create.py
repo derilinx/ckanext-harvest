@@ -31,7 +31,7 @@ def harvest_job_create(context, data_dict):
     source_id = data_dict['source_id']
     user = context.get('user')
 
-    source = HarvestSource.get(source_id)
+    source = HarvestSource.by_name_or_id(source_id)
     if not source:
         raise pt.ObjectNotFound(pt._('Harvest source not found'))
 
