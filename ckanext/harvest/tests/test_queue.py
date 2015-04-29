@@ -1,13 +1,22 @@
+from nose.tools import assert_equal, assert_raises
+
 import ckanext.harvest.model as harvest_model
 from ckanext.harvest.model import HarvestObject, HarvestObjectExtra
 from ckanext.harvest.interfaces import IHarvester
 import ckanext.harvest.queue as queue
+from ckanext.harvest.logic import HarvestJobExists
+from ckanext.harvest.queue import get_gather_consumer, get_fetch_consumer
 from ckan.plugins.core import SingletonPlugin, implements
+from ckan.plugins import toolkit as tk
 from ckan.new_tests import factories
 import json
 import ckan.logic as logic
 from ckan import model
 
+get_action = tk.get_action
+
+import logging
+log = logging.getLogger(__name__)
 
 # Get message off a carrot queue
 def pop(consumer):
@@ -88,6 +97,8 @@ class TestHarvester(SingletonPlugin):
 
 
 class TestHarvestQueue(object):
+    '''Tests queue.py by calling its methods directly and testing what it does
+    in detail.'''
     @classmethod
     def setup_class(cls):
         harvest_model.setup()
@@ -212,6 +223,8 @@ class TestHarvestQueue(object):
         assert harvest_job['status'] == u'Finished'
         assert harvest_job['stats'] == {'new': 3}
 
+        context['include_status'] = True  # DGU only
+        context['include_job_status'] = True  # DGU only
         harvest_source_dict = logic.get_action('harvest_source_show')(
             context,
             {'id': harvest_source['id']}
@@ -282,6 +295,8 @@ class TestHarvestQueue(object):
         assert harvest_job['stats'] == {'reimported': 2, 'unchanged': 1}
 
         context['detailed'] = True
+        context['include_status'] = True  # DGU only
+        context['include_job_status'] = True  # DGU only
         harvest_source_dict = logic.get_action('harvest_source_show')(
             context,
             {'id': harvest_source['id']}
@@ -290,3 +305,229 @@ class TestHarvestQueue(object):
         assert harvest_source_dict['status']['last_job']['stats'] == {'reimported': 2, 'unchanged': 1}
         assert harvest_source_dict['status']['total_datasets'] == 2
         assert harvest_source_dict['status']['job_count'] == 2
+
+
+class GatherException(Exception):
+    pass
+class FetchException(Exception):
+    pass
+
+
+class BadHarvester(SingletonPlugin):
+    '''This harvester can be configured to behave badly in lots of ways, to
+    help test queue.py'''
+    implements(IHarvester)
+    def info(self):
+        return {'name': 'bad', 'title': 'bad', 'description': 'test harvester'}
+
+    def gather_stage(self, harvest_job):
+        if harvest_job.source.url == 'gather_excepts':
+            raise GatherException()
+
+        if harvest_job.source.url == 'gather_excepts_after_creating_objects':
+            obj = HarvestObject(guid='test1', job=harvest_job)
+            obj.add()
+            obj.save()
+            raise GatherException()
+
+        obj = HarvestObject(guid='test1', job=harvest_job)
+        obj.add()
+        obj.save()
+        return [obj.id]
+
+    def fetch_stage(self, harvest_object):
+        if harvest_object.job.source.url == 'fetch_excepts':
+            raise FetchException()
+
+
+class TestHarvestQueueBlackBox(object):
+    '''Tests queue.py as a black box, calling it using "job-run" (which mimics
+    celery's calls, but all in-process) and checking the state of the job at
+    the end.
+    '''
+
+    @classmethod
+    def setup_class(cls):
+        cls._empty_the_queues()
+
+    def setup(self):
+        harvest_model.setup()
+        self.site_user = logic.get_action('get_site_user')(
+            {'model': model, 'ignore_auth': True}, {}
+        )['name']
+
+    @classmethod
+    def teardown_class(cls):
+        model.repo.rebuild_db()
+
+    def teardown(self):
+        self._empty_the_queues()
+        model.repo.rebuild_db()
+
+    @classmethod
+    def _empty_the_queues(cls):
+        ### make sure queues/exchanges are created first and are empty
+        gather_consumer = queue.get_consumer('ckan.harvest.gather','harvest_job_id')
+        fetch_consumer = queue.get_consumer('ckan.harvest.fetch','harvest_object_id')
+        # DGU Hack - equivalent for carrot
+        connection = queue.get_carrot_connection()
+        connection.get_channel().queue_purge('ckan.harvest.gather')
+        connection.get_channel().queue_purge('ckan.harvest.fetch')
+        #gather_consumer.queue_purge(queue='ckan.harvest.gather')
+        #fetch_consumer.queue_purge(queue='ckan.harvest.fetch')
+
+    def _assert_queues_are_empty(self):
+        gather_consumer = queue.get_consumer('ckan.harvest.gather','harvest_job_id')
+        fetch_consumer = queue.get_consumer('ckan.harvest.fetch','harvest_object_id')
+        for queue_name, consumer in (('gather', gather_consumer),
+                                     ('fetch', fetch_consumer)):
+            msg = consumer.fetch()
+            assert not msg, 'Did not expect message on %s queue: %s' % \
+                (queue_name, msg)
+
+    def _create_source(self, url, source_type='bad'):
+        factories.Organization(name='testorg')
+        context = {'model': model, 'session': model.Session,
+                   'user': self.site_user, 'api_version': 3, 'ignore_auth': True}
+        source_dict = {
+            'title': 'Test Source',
+            'name': 'test-source',
+            'url': url,
+            # DGU HACK
+            'type': source_type,
+            #'source_type': source_type,
+            'publisher_id': 'testorg',
+        }
+        harvest_source = get_action('harvest_source_create')(
+            context,
+            source_dict
+        )
+        return harvest_source
+
+    def _job_run(self, source_id):
+        logging.getLogger('amqplib').setLevel(logging.INFO)
+
+        source_id = unicode(source_id)
+
+        # ensure the queues are empty - needed for this command to run ok
+        self._assert_queues_are_empty()
+
+        # get the source id first (source_id may be a source.name)
+        context = {'model': model, 'user': self.site_user,
+                   'session': model.Session}
+        source = get_action('harvest_source_show')(context,
+                                                   {'id': source_id})
+        # create harvest job
+        try:
+            job = get_action('harvest_job_create')(context,
+                                                   {'source_id': source['id']})
+        except HarvestJobExists:
+            log.debug('Job exists - cannot create it')
+            raise
+
+        # run - sends the job to the gather queue
+        jobs = get_action('harvest_jobs_run')(context, {'source_id': source['id']})
+        assert jobs
+
+        # gather
+        log.info('Gather')
+        gather_consumer = queue.get_consumer('ckan.harvest.gather', 'harvest_job_id')
+        message = gather_consumer.fetch()
+        if not message:
+            log.error('Could not get gather message - probably because the gather process is running elsewhere.')
+            assert 0, 'No gather message'
+        queue.gather_callback({'harvest_job_id': job['id']}, message)
+
+        # fetch
+        logging.getLogger('ckan.cli').info('Fetch')
+        fetch_consumer = queue.get_consumer('ckan.harvest.fetch', 'harvest_object_id')
+        while True:
+            message = fetch_consumer.fetch()
+            if not message:
+                break
+            queue.fetch_callback(message.payload, message)
+
+        # run - mark the job as finished
+        get_action('harvest_jobs_run')(context, {'source_id': source['id']})
+
+        # get details of the job and source
+        return (self._harvest_job_show(job['id']),
+                self._harvest_source_show(source['id']))
+
+    def _harvest_job_show(self, job_id=None):
+        context = {'model': model, 'user': self.site_user,
+                   'session': model.Session}
+        if job_id is None:
+            jobs = get_action('harvest_job_list')(context, {})
+            job_id = jobs[0]['id']  # latest one
+        context['return_stats'] = True
+        harvest_job = logic.get_action('harvest_job_show')(
+            context,
+            {'id': job_id}
+        )
+        return harvest_job
+
+    def _harvest_source_show(self, source_id=None):
+        context = {'model': model, 'user': self.site_user,
+                   'session': model.Session}
+        if not source_id:
+            sources = get_action('harvest_source_list')(context, {})
+            assert_equal(len(sources), 1)
+            source_id = sources[0]['id']
+        context['detailed'] = True
+        context['include_status'] = True  # DGU only
+        context['include_job_status'] = True  # DGU only
+        harvest_source = logic.get_action('harvest_source_show')(
+            context,
+            {'id': source_id}
+        )
+        return harvest_source
+
+    def test_basic(self):
+        # The same test as the TestHarvestQueue.test_01_basic_harvester but
+        # using job_run.
+        source = self._create_source('basic_test', source_type='test')
+        job, source = self._job_run(source['id'])
+
+        assert job['stats'] == {'new': 3}
+        assert len(job['objects']) == 3
+        assert source['status']['last_job']['stats'] == {'new': 3}
+        assert source['status']['total_datasets'] == 3
+        assert source['status']['job_count'] == 1
+
+        # second run
+        job, source = self._job_run(source['id'])
+
+        assert job['stats'] == {'reimported': 2, 'unchanged': 1}
+        assert source['status']['last_job']['stats'] == {'reimported': 2, 'unchanged': 1}
+        assert source['status']['total_datasets'] == 2
+        assert source['status']['job_count'] == 2
+
+    def test_gather_excepts(self):
+        source = self._create_source('gather_excepts', source_type='bad')
+
+        assert_raises(GatherException, self._job_run, source['id'])
+        job, source = self._harvest_job_show(), self._harvest_source_show()
+        assert job['status'] == 'Aborted'
+        assert job['stats'] == {}
+        assert source['status']['last_job']['gather_finished']
+
+    def test_gather_excepts_after_creating_objects(self):
+        source = self._create_source('gather_excepts_after_creating_objects', source_type='bad')
+
+        assert_raises(GatherException, self._job_run, source['id'])
+        job, source = self._harvest_job_show(), self._harvest_source_show()
+        assert job['status'] == 'Aborted'
+        assert job['objects'] == []
+
+    def test_fetch_excepts(self):
+        source = self._create_source('fetch_excepts', source_type='bad')
+
+        self._job_run(source['id'])
+        job, source = self._job_run(source['id'])
+        assert job['status'] == 'Finished'
+        assert job['objects'][0]['state'] == 'ERROR'
+        assert job['objects'][0]['report_status'] == 'errored'
+        assert job['objects'][0]['fetch_finished']
+        assert job['objects'][0]['current'] is False
+        assert source['status']['last_job']['stats'] == {'errored': 1}

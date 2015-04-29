@@ -208,6 +208,14 @@ def _make_scheduled_jobs(context, data_dict):
         source.save()
 
 def harvest_jobs_run(context,data_dict):
+    '''
+    Runs any jobs that have been requested by a user or 'scheduled' for the
+    current date/time.
+    Checks running jobs to see if they are finished and if so, mark them as so.
+
+    :returns: jobs that are now started
+    :rtype: list of dictionaries
+    '''
     log.info('Harvest job run: %r', data_dict)
     check_access('harvest_jobs_run',context,data_dict)
 

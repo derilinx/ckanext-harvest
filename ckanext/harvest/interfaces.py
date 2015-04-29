@@ -34,7 +34,7 @@ class IHarvester(Interface):
 
     def gather_stage(self, harvest_job):
         '''
-        The gather stage will recieve a HarvestJob object and will be
+        The gather stage will receive a HarvestJob object and will be
         responsible for:
             - gathering all the necessary objects to fetch on a later.
               stage (e.g. for a CSW server, perform a GetRecords request)
@@ -46,6 +46,7 @@ class IHarvester(Interface):
             - creating and storing any suitable HarvestGatherErrors that may
               occur.
             - returning a list with all the ids of the created HarvestObjects.
+            - to abort, raise an exception. Any created HarvestObjects will be deleted.
 
         :param harvest_job: HarvestJob object
         :returns: A list of HarvestObject ids

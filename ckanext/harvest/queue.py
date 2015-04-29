@@ -120,12 +120,18 @@ def gather_callback(message_data, message):
                     try:
                         harvest_object_ids = harvester.gather_stage(job)
                     except (Exception, KeyboardInterrupt), e:
-                        # exception means we do not know the object ids so we
-                        # can't send them to the fetch queue, however keep them
-                        # for the user to see what was gathered
+                        # Assume it is a serious error and the harvest stops
+                        # now, so tidy up.
                         log.exception(e)
                         log.error('Gather exception: %r', e)
                         job.status = 'Aborted'
+                        # Delete any harvest objects else they'd suggest the
+                        # job is in limbo
+                        harvest_objects = model.Session.query(HarvestObject). \
+                            filter_by(harvest_job_id=job.id)
+                        for harvest_object in harvest_objects.all():
+                            model.Session.delete(harvest_object)
+                        model.Session.commit()
                         raise
                     finally:
                         job.gather_finished = datetime.datetime.now()
@@ -250,7 +256,7 @@ def fetch_callback(message_data, message):
                 elif obj.get_extra('status') == 'deleted':
                     obj.report_status = 'deleted'
                 elif obj.current == False:
-                    # not sure why a harvest object was created...
+                    # decided not to continue with the import after all
                     obj.report_status = 'unchanged'
                 elif len(model.Session.query(HarvestObject)
                     .filter_by(package_id = obj.package_id)

@@ -35,14 +35,13 @@ def update_job_status(job, session):
         {'ERROR': 5, 'COMPLETE': 10, 'WAITING': 3}
 
     '''
-    if job['status'] in ('Finished', 'New') or not job['gather_finished']:
+    if job['status'] in ('Finished', 'Aborted', 'New') or not job['gather_finished']:
         return
     # Must be in the fetch/import stage. job['status'] == 'Running'
     # See how far it is through its HarvestObjects
     unprocessed_objects = session.query(HarvestObject.id) \
         .filter(HarvestObject.harvest_job_id == job['id']) \
-        .filter(and_((HarvestObject.state != u'COMPLETE'),
-                (HarvestObject.state != u'ERROR')))
+        .filter(~HarvestObject.state.in_((u'COMPLETE', 'ERROR', 'ABORTED')))
 
     if unprocessed_objects.count() != 0:
         # job not finished yet - report the state counts
