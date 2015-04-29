@@ -294,12 +294,14 @@ def harvest_job_abort(context, data_dict):
     source = harvest_source_show(context, {'id': source_id})
 
     # HarvestJob set to 'Aborted'
-
-    jobs = get_action('harvest_job_list')(context,
-                                          {'source_id': source['id']})
-    if not jobs:
+    # Don not use harvest_job_list since it can use a lot of memory
+    last_job = model.Session.query(HarvestJob) \
+                    .filter_by(source_id=source['id']) \
+                    .order_by(HarvestJob.created.desc()).first()
+    if not last_job:
         raise NotFound('Error: source has no jobs')
-    job = jobs[0]  # latest one
+    job = get_action('harvest_job_show')(context,
+                                         {'id': last_job.id})
 
     if job['status'] not in ('Finished', 'Aborted'):
         # i.e. New or Running
