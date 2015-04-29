@@ -348,12 +348,6 @@ class HarvesterBase(SingletonPlugin):
                           .filter(HarvestObject.guid==harvest_object.guid) \
                           .filter(HarvestObject.current==True) \
                           .first()
-        # Transfer current to the harvest_object
-        if previous_object:
-            previous_object.current = False
-            harvest_object.package_id = previous_object.package_id
-            previous_object.add()
-        harvest_object.current = True
 
         user = source_config.get('user', 'harvest')
 
@@ -365,6 +359,7 @@ class HarvesterBase(SingletonPlugin):
             get_action('package_delete')(context, {'id': harvest_object.package_id})
             log.info('Deleted package {0} with guid {1}'.format(harvest_object.package_id, harvest_object.guid))
             previous_object.save()
+            self._transfer_current(previous_object, harvest_object)
             return True
 
         # Set defaults for the package_dict, mainly from the source_config
@@ -446,6 +441,7 @@ class HarvesterBase(SingletonPlugin):
         if not package_dict:
             # Nothing to harvest after all.
             # No error should be recorded, so that's why we return True.
+            # Yet this object is not 'current', so it's clear we skipped.
             return True
 
         if source_config.get('clean_tags'):
@@ -503,9 +499,28 @@ class HarvesterBase(SingletonPlugin):
                 self._save_object_error('Validation Error: %s' % str(e.error_summary), harvest_object, 'Import')
                 return False
 
+        # Successful import
+        self._transfer_current(previous_object, harvest_object)
+        return True
+
+    def _transfer_current(self, previous_object, harvest_object):
+        '''Transfer "current" flag to this harvest_object to show it is was the
+        last successful import.
+
+        NB This should be called at the end of a successful import. The problem
+        with doing it any earlier is that a harvest that gets skipped after
+        this point will still be marked 'current'. This gives two problems:
+        1. queue.py will set obj.report_status = 'reimported' rather than 'unchanged'.
+        2. harvest_object_show with param dataset_id will show you the skipped
+        object.
+        '''
+        if previous_object:
+            previous_object.current = False
+            harvest_object.package_id = previous_object.package_id
+            previous_object.add()
+        harvest_object.current = True
         model.Session.commit()
         model.Session.remove()
-        return True
 
     def get_package_dict(self, harvest_object, package_dict_defaults,
                          source_config, existing_dataset):
