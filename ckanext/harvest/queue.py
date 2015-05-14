@@ -142,9 +142,10 @@ def gather_callback(message_data, message):
                     # Delete any stray harvest_objects not returned by
                     # gather_stage() - they'd not be dealt with so would
                     # suggest the job is in limbo
-                    saved_harvest_object_ids = \
-                        model.Session.query(HarvestObject.id)\
-                        .filter_by(harvest_job_id=job.id).all()
+                    saved_harvest_object_ids = [
+                        ho.id for ho in
+                        model.Session.query(HarvestObject)
+                        .filter_by(harvest_job_id=job.id).all()]
                     orphaned_harvest_objects_ids = \
                         set(saved_harvest_object_ids) - \
                         set(harvest_object_ids or [])
