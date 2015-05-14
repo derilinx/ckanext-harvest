@@ -136,7 +136,26 @@ def gather_callback(message_data, message):
                     finally:
                         job.gather_finished = datetime.datetime.now()
                         job.save()
-                    log.debug('Received from plugin''s gather_stage: %r' % harvest_object_ids)
+                    log.debug('Received objects from plugin''s gather_stage (%d): %r',
+                              len(harvest_object_ids or []), harvest_object_ids)
+
+                    # Delete any stray harvest_objects not returned by
+                    # gather_stage() - they'd not be dealt with so would
+                    # suggest the job is in limbo
+                    saved_harvest_object_ids = \
+                        model.Session.query(HarvestObject.id)\
+                        .filter_by(harvest_job_id=job.id).all()
+                    orphaned_harvest_objects_ids = \
+                        set(saved_harvest_object_ids) - \
+                        set(harvest_object_ids or [])
+                    if orphaned_harvest_objects_ids:
+                        log.warning('Orphaned objects deleted (%d): %s',
+                                    len(orphaned_harvest_objects_ids),
+                                    orphaned_harvest_objects_ids)
+                        for obj_id in orphaned_harvest_objects_ids:
+                            model.Session.delete(HarvestObject.get(obj_id))
+                        model.Session.commit()
+
                     if harvest_object_ids and len(harvest_object_ids) > 0:
                         for id in harvest_object_ids:
                             # Send the id to the fetch queue
