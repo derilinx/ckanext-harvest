@@ -62,7 +62,7 @@ class CKANHarvester(HarvesterBase):
             self.config = json.loads(config_str)
             if self.config.get('api_version'):
                 self.api_version = int(self.config['api_version'])
-
+            self.organizations = self.config.get('organizations', [])
             log.debug('Using config: %r', self.config)
         else:
             self.config = {}
@@ -87,6 +87,10 @@ class CKANHarvester(HarvesterBase):
                     int(config_obj['api_version'])
                 except ValueError:
                     raise ValueError('api_version must be an integer')
+
+            if 'organizations' in config_obj:
+                if not isinstance(config_obj['organizations'],list):
+                    raise ValueError('organizations must be a list')
 
             if 'default_tags' in config_obj:
                 if not isinstance(config_obj['default_tags'],list):
@@ -268,6 +272,15 @@ class CKANHarvester(HarvesterBase):
                 'CKAN content could not be deserialized: %s: %r' % (url, e),
                 harvest_object)
             return False
+
+        # If configuration contains a list of organizations we want to restrict
+        # the harvester too, then check this dataset is in one of those orgs,
+        # otherwise skip it.
+        org_name = dataset.get('organization', {}).get('name', '')
+        if org_name and self.organizations:
+            if not org_name in self.organizations:
+                log.debug('Skipping dataset %s as not a member of configured organizations' % dataset['name'])
+                return 'unchanged'
 
         # Skip datasets that are flagged dgu_harvest_me=false
         ignore_dataset = False
@@ -502,7 +515,7 @@ class CKANHarvester(HarvesterBase):
                 package_dict['extras'][SECONDARY_THEMES] = json.dumps(themes[1:])
         except ImportError:
             pass
- 
+
         # Convert dicts to lists (required for package_create/update)
         package_dict['extras'] = [dict(key=key, value=package_dict['extras'][key])
                                     for key in package_dict['extras']]
