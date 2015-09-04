@@ -62,7 +62,8 @@ class CKANHarvester(HarvesterBase):
             self.config = json.loads(config_str)
             if self.config.get('api_version'):
                 self.api_version = int(self.config['api_version'])
-            self.organizations = self.config.get('organizations', [])
+            self.organizations_include = self.config.get('organizations_filter_include', [])
+            self.organizations_exclude = self.config.get('organizations_filter_exclude', [])
             log.debug('Using config: %r', self.config)
         else:
             self.config = {}
@@ -88,9 +89,13 @@ class CKANHarvester(HarvesterBase):
                 except ValueError:
                     raise ValueError('api_version must be an integer')
 
-            if 'organizations' in config_obj:
-                if not isinstance(config_obj['organizations'],list):
-                    raise ValueError('organizations must be a list')
+            if 'organizations_filter_include' in config_obj:
+                if not isinstance(config_obj['organizations_filter_include'],list):
+                    raise ValueError('organizations_filter_include must be a list')
+
+            if 'organizations_filter_exclude' in config_obj:
+                if not isinstance(config_obj['organizations_filter_exclude'],list):
+                    raise ValueError('organizations_filter_exclude must be a list')
 
             if 'default_tags' in config_obj:
                 if not isinstance(config_obj['default_tags'],list):
@@ -274,13 +279,17 @@ class CKANHarvester(HarvesterBase):
             return False
 
         # If configuration contains a list of organizations we want to restrict
-        # the harvester too, then check this dataset is in one of those orgs,
-        # otherwise skip it.
+        # the harvester to, then check this dataset is in one of those orgs.
         org_name = dataset.get('organization', {}).get('name', '')
-        if org_name and self.organizations:
-            if not org_name in self.organizations:
-                log.debug('Skipping dataset %s as not a member of configured organizations' % dataset['name'])
-                return 'unchanged'
+        if org_name:
+            if self.organizations_include:
+                if not org_name in self.organizations_include:
+                    log.debug('Skipping dataset %s as not in organizations_filter_include' % dataset['name'])
+                    return 'unchanged'
+            if self.organizations_exclude:
+                if org_name in self.organizations_exclude:
+                    log.debug('Skipping dataset %s as it is in organizations_filter_exclude' % dataset['name'])
+                    return 'unchanged'
 
         # Skip datasets that are flagged dgu_harvest_me=false
         ignore_dataset = False
