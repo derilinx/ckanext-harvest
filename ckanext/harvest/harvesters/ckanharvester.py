@@ -284,11 +284,11 @@ class CKANHarvester(HarvesterBase):
         if org_name:
             if self.organizations_include:
                 if not org_name in self.organizations_include:
-                    log.debug('Skipping dataset %s as not in organizations_filter_include' % dataset['name'])
+                    log.debug('Skipping dataset %s as organization %s not in organizations_filter_include' % (dataset['name'], org_name,))
                     return 'unchanged'
             if self.organizations_exclude:
                 if org_name in self.organizations_exclude:
-                    log.debug('Skipping dataset %s as it is in organizations_filter_exclude' % dataset['name'])
+                    log.debug('Skipping dataset %s as organisation %s is in organizations_filter_exclude' % (dataset['name'], org_name,))
                     return 'unchanged'
 
         # Skip datasets that are flagged dgu_harvest_me=false

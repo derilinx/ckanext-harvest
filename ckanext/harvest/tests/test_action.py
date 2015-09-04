@@ -67,7 +67,7 @@ class HarvestSourceActionBase(object):
 
         cls.default_source_dict =  {
           "url": "http://test.action.com",
-          #"name": "test-source-action",
+          "name": "test-source-action",
           "title": "Test source action",
           #"notes": "Test source action desc",
           "type": "test-for-action",
@@ -94,7 +94,6 @@ class HarvestSourceActionBase(object):
         result = tests.call_action_api(self.app, self.action,
                                 apikey=self.sysadmin['apikey'], status=409, **source_dict)
 
-        print result
         for key in ('publisher_id','url','type'):
             assert result[key] == [u'Missing value']
 
@@ -187,6 +186,7 @@ class TestHarvestSourceActionUpdate(HarvestSourceActionBase):
 
         # Create a source to udpate
         source_dict = cls.default_source_dict
+
         result = tests.call_action_api(cls.app, 'harvest_source_create',
                                 apikey=cls.sysadmin['apikey'], **source_dict)
 
@@ -208,7 +208,6 @@ class TestHarvestSourceActionUpdate(HarvestSourceActionBase):
         result = tests.call_action_api(self.app, 'harvest_source_update',
                                 apikey=self.sysadmin['apikey'], **source_dict)
 
-        print result
         for key in source_dict.keys():
             assert source_dict[key] == result[key], key
 

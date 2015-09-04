@@ -180,16 +180,18 @@ field. The currently supported configuration options are:
     packages regardless of the modification date. Default is False.
 
 *   organizations_filter_include: This configuration option allows you to specify
-    a list of remote organization short names. If this property has a
-    value then only datasets that are in one of these organizations will be
-    harvested. All other datasets will be skipped. Only one of
+    a list of remote organization names (e.g. "arkansas-gov" is the name for
+    organization http://catalog.data.gov/organization/arkansas-gov ). If this
+    property has a value then only datasets that are in one of these organizations
+    will be harvested. All other datasets will be skipped. Only one of
     organizations_filter_include or organizations_filter_exclude should be
     configured.
 
 *   organizations_filter_exclude: This configuration option allows you to specify
-    a list of remote organization short names. If this property is set
-    then all datasets from the remote source will be harvested unless it belongs
-    to one of the organizations in this option. Only one of
+    a list of remote organization names (e.g. "arkansas-gov" is the name for
+    organization http://catalog.data.gov/organization/arkansas-gov ). If this
+    property is set then all datasets from the remote source will be harvested
+    unless it belongs to one of the organizations in this option. Only one of
     organizations_filter_exclude or organizations_filter_include should be
     configured.
 
