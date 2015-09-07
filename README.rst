@@ -179,6 +179,22 @@ field. The currently supported configuration options are:
     Setting this property to true will force the harvester to gather all remote
     packages regardless of the modification date. Default is False.
 
+*   organizations_filter_include: This configuration option allows you to specify
+    a list of remote organization names (e.g. "arkansas-gov" is the name for
+    organization http://catalog.data.gov/organization/arkansas-gov ). If this
+    property has a value then only datasets that are in one of these organizations
+    will be harvested. All other datasets will be skipped. Only one of
+    organizations_filter_include or organizations_filter_exclude should be
+    configured.
+
+*   organizations_filter_exclude: This configuration option allows you to specify
+    a list of remote organization names (e.g. "arkansas-gov" is the name for
+    organization http://catalog.data.gov/organization/arkansas-gov ). If this
+    property is set then all datasets from the remote source will be harvested
+    unless it belongs to one of the organizations in this option. Only one of
+    organizations_filter_exclude or organizations_filter_include should be
+    configured.
+
 Here is an example of a configuration object (the one that must be entered in
 the configuration field)::
 
@@ -188,6 +204,8 @@ the configuration field)::
      "default_groups":["my-own-group"],
      "default_extras":{"new_extra":"Test","harvest_url":"{harvest_source_url}/dataset/{dataset_id}"},
      "override_extras": true,
+     "organizations_filter_include": [],
+     "organizations_filter_exclude": ["remote-organization"],
      "user":"harverster-user",
      "api_key":"<REMOTE_API_KEY>",
      "read_only": true
@@ -466,8 +484,8 @@ following steps with the one you are using.
       you defined in the `stdout_logfile` section to see what happened. Common errors include::
 
           `socket.error: [Errno 111] Connection refused`
-          RabbitMQ is not running:: 
-          
+          RabbitMQ is not running::
+
             sudo service rabbitmq-server start
 
 4. Once we have the two consumers running and monitored, we just need to create a cron job

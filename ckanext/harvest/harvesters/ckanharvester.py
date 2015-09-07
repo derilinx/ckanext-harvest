@@ -62,7 +62,8 @@ class CKANHarvester(HarvesterBase):
             self.config = json.loads(config_str)
             if self.config.get('api_version'):
                 self.api_version = int(self.config['api_version'])
-
+            self.organizations_include = self.config.get('organizations_filter_include', [])
+            self.organizations_exclude = self.config.get('organizations_filter_exclude', [])
             log.debug('Using config: %r', self.config)
         else:
             self.config = {}
@@ -87,6 +88,14 @@ class CKANHarvester(HarvesterBase):
                     int(config_obj['api_version'])
                 except ValueError:
                     raise ValueError('api_version must be an integer')
+
+            if 'organizations_filter_include' in config_obj:
+                if not isinstance(config_obj['organizations_filter_include'],list):
+                    raise ValueError('organizations_filter_include must be a list')
+
+            if 'organizations_filter_exclude' in config_obj:
+                if not isinstance(config_obj['organizations_filter_exclude'],list):
+                    raise ValueError('organizations_filter_exclude must be a list')
 
             if 'default_tags' in config_obj:
                 if not isinstance(config_obj['default_tags'],list):
@@ -268,6 +277,19 @@ class CKANHarvester(HarvesterBase):
                 'CKAN content could not be deserialized: %s: %r' % (url, e),
                 harvest_object)
             return False
+
+        # If configuration contains a list of organizations we want to restrict
+        # the harvester to, then check this dataset is in one of those orgs.
+        org_name = dataset.get('organization', {}).get('name', '')
+        if org_name:
+            if self.organizations_include:
+                if not org_name in self.organizations_include:
+                    log.debug('Skipping dataset %s as organization %s not in organizations_filter_include' % (dataset['name'], org_name,))
+                    return 'unchanged'
+            if self.organizations_exclude:
+                if org_name in self.organizations_exclude:
+                    log.debug('Skipping dataset %s as organisation %s is in organizations_filter_exclude' % (dataset['name'], org_name,))
+                    return 'unchanged'
 
         # Skip datasets that are flagged dgu_harvest_me=false
         ignore_dataset = False
@@ -502,7 +524,7 @@ class CKANHarvester(HarvesterBase):
                 package_dict['extras'][SECONDARY_THEMES] = json.dumps(themes[1:])
         except ImportError:
             pass
- 
+
         # Convert dicts to lists (required for package_create/update)
         package_dict['extras'] = [dict(key=key, value=package_dict['extras'][key])
                                     for key in package_dict['extras']]
