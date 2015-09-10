@@ -18,6 +18,9 @@ class Harvester(CkanCommand):
       harvester source {url} {type} [{active}] [{user-id}] [{publisher-id}]
         - create new harvest source
 
+      harvester clearsource {id}
+        - clears all datasets, jobs and objects related to a harvest source, but keeps the source itself
+
       harvester rmsource {id}
         - remove (inactivate) a harvester source
 
@@ -109,6 +112,8 @@ class Harvester(CkanCommand):
             self.create_harvest_source()
         elif cmd == "rmsource":
             self.remove_harvest_source()
+        elif cmd == 'clearsource':
+            self.clear_harvest_source()
         elif cmd == 'sources':
             self.list_harvest_sources()
         elif cmd == 'job':
@@ -222,6 +227,16 @@ class Harvester(CkanCommand):
         context = {'model': model, 'user': self.admin_user['name'], 'session':model.Session}
         get_action('harvest_source_delete')(context,{'id':source_id})
         print 'Removed harvest source: %s' % source_id
+
+    def clear_harvest_source(self):
+        if len(self.args) >= 2:
+            source_id = unicode(self.args[1])
+        else:
+            print 'Please provide a source id'
+            sys.exit(1)
+        context = {'model': model, 'user': self.admin_user['name'], 'session':model.Session}
+        get_action('harvest_source_clear')(context,{'id':source_id})
+        print 'Cleared harvest source: %s' % source_id
 
     def list_harvest_sources(self):
         if len(self.args) >= 2 and self.args[1] == 'all':
