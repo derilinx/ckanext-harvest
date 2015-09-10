@@ -67,6 +67,8 @@ class CKANHarvester(HarvesterBase):
             log.debug('Using config: %r', self.config)
         else:
             self.config = {}
+            self.organizations_include = []
+            self.organizations_exclude = []
 
     def info(self):
         return {
