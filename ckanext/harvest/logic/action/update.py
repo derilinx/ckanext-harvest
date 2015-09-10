@@ -1,12 +1,18 @@
 import hashlib
 
+import pylons.config as config
 import logging
 import datetime
+import json
 from sqlalchemy import or_
 
+import ckan.plugins.toolkit as t
+from ckan.lib.search.index import PackageSearchIndex
 from ckan.plugins import PluginImplementations
-from ckan.logic import get_action
+from ckan.logic import get_action, get_or_bust
 from ckanext.harvest.interfaces import IHarvester
+from ckan.lib.search.common import SearchIndexError, make_connection
+from ckan.lib.search import clear as clear_package
 
 from ckan.model import Package
 
@@ -79,6 +85,132 @@ def harvest_source_update(context,data_dict):
     model.repo.commit_and_remove()
 
     return harvest_source_dictize(source,context)
+
+def harvest_source_clear(context, data_dict):
+    '''
+    Clears all datasets, jobs and objects related to a harvest source, but keeps the source itself.
+    This is useful to clean history of long running harvest sources to start again fresh.
+
+    :param id: the id of the harvest source to clear
+    :type id: string
+
+    '''
+    check_access('harvest_source_clear',context,data_dict)
+
+    harvest_source_id = data_dict.get('id',None)
+
+    source = HarvestSource.by_name_or_id(harvest_source_id)
+    if not source:
+        log.error('Harvest source %s does not exist', harvest_source_id)
+        raise NotFound('Harvest source %s does not exist' % harvest_source_id)
+
+    harvest_source_id = source.id
+
+    model = context['model']
+
+    # we want to call clear_package on every item we know about
+
+    lookup = "select package_id from harvest_object where harvest_source_id='{harvest_source_id}'"\
+        .format(harvest_source_id=harvest_source_id)
+    ids = [row[0] for row in model.Session.execute(lookup)]
+    if ids:
+        log.info('Removing Harvest source datasets from solr before deletion: %s', harvest_source_id)
+
+    for pid in ids:
+        clear_package(pid)
+
+
+    sql = "select id from related where id in (select related_id from related_dataset where dataset_id in (select package_id from harvest_object where harvest_source_id = '{harvest_source_id}'));".format(harvest_source_id=harvest_source_id)
+    result = model.Session.execute(sql)
+    ids = []
+    for row in result:
+        ids.append(row[0])
+    related_ids = "('" + "','".join(ids) + "')"
+
+    sql = '''begin;
+    update package set state = 'to_delete' where id in (select package_id from harvest_object where harvest_source_id = '{harvest_source_id}');'''.format(
+        harvest_source_id=harvest_source_id)
+
+    # CKAN-2.3 or above: delete resource views, resource revisions & resources
+    if t.check_ckan_version(min_version='2.3'):
+        sql += '''
+        delete from resource_view where resource_id in (select id from resource where package_id in (select id from package where state = 'to_delete' ));
+        delete from resource_revision where package_id in (select id from package where state = 'to_delete' );
+        delete from resource where package_id in (select id from package where state = 'to_delete' );
+        '''
+    # Backwards-compatibility: support ResourceGroup (pre-CKAN-2.3)
+    else:
+        sql += '''
+        delete from resource_revision where resource_group_id in
+        (select id from resource_group where package_id in
+        (select id from package where state = 'to_delete'));
+        delete from resource where resource_group_id in
+        (select id from resource_group where package_id in
+        (select id from package where state = 'to_delete'));
+        delete from resource_group_revision where package_id in
+        (select id from package where state = 'to_delete');
+        delete from resource_group where package_id  in
+        (select id from package where state = 'to_delete');
+        '''
+    sql += '''
+    delete from harvest_coupled_resource where service_record_package_id in  (select id from package where state = 'to_delete');
+    delete from harvest_coupled_resource where dataset_record_package_id in  (select id from package where state = 'to_delete');
+    delete from harvest_object_error where harvest_object_id in (select id from harvest_object where harvest_source_id = '{harvest_source_id}');
+    delete from harvest_object_extra where harvest_object_id in (select id from harvest_object where harvest_source_id = '{harvest_source_id}');
+    delete from harvest_object where harvest_source_id = '{harvest_source_id}';
+    delete from harvest_gather_error where harvest_job_id in (select id from harvest_job where source_id = '{harvest_source_id}');
+    delete from harvest_job where source_id = '{harvest_source_id}';
+    delete from package_role where package_id in (select id from package where state = 'to_delete' );
+    delete from user_object_role where id not in (select user_object_role_id from package_role) and context = 'Package';
+    delete from package_tag_revision where package_id in (select id from package where state = 'to_delete');
+    delete from member_revision where table_id in (select id from package where state = 'to_delete');
+    delete from package_extra_revision where package_id in (select id from package where state = 'to_delete');
+    delete from package_revision where id in (select id from package where state = 'to_delete');
+    delete from package_tag where package_id in (select id from package where state = 'to_delete');
+    delete from package_extra where package_id in (select id from package where state = 'to_delete');
+    delete from package_relationship_revision where subject_package_id in (select id from package where state = 'to_delete');
+    delete from package_relationship_revision where object_package_id in (select id from package where state = 'to_delete');
+    delete from package_relationship where subject_package_id in (select id from package where state = 'to_delete');
+    delete from package_relationship where object_package_id in (select id from package where state = 'to_delete');
+    delete from member where table_id in (select id from package where state = 'to_delete');
+    delete from related_dataset where dataset_id in (select id from package where state = 'to_delete');
+    delete from related where id in {related_ids};
+    delete from package where id in (select id from package where state = 'to_delete');
+    commit;
+    '''.format(
+        harvest_source_id=harvest_source_id, related_ids=related_ids)
+
+    log.info('Removing Harvest source datasets from database: %s', harvest_source_id)
+    model.Session.execute(sql)
+    log.debug('Datasets all removed')
+
+    return {'id': harvest_source_id}
+
+def harvest_source_index_clear(context,data_dict):
+
+    check_access('harvest_source_clear',context,data_dict)
+    harvest_source_id = data_dict.get('id',None)
+
+    source = HarvestSource.get(harvest_source_id)
+    if not source:
+        log.error('Harvest source %s does not exist', harvest_source_id)
+        raise NotFound('Harvest source %s does not exist' % harvest_source_id)
+
+    harvest_source_id = source.id
+
+    conn = make_connection()
+    query = ''' +publisher:"%s"''' % ('harvest_source_id', harvest_source_id)
+    try:
+        conn.delete_query(query)
+        if t.asbool(config.get('ckan.search.solr_commit', 'true')):
+            conn.commit()
+    except Exception, e:
+        log.exception(e)
+        raise SearchIndexError(e)
+    finally:
+        conn.close()
+
+    return {'id': harvest_source_id}
 
 def harvest_objects_import(context,data_dict):
     '''
@@ -330,3 +462,30 @@ def harvest_job_abort(context, data_dict):
 
     job_obj = HarvestJob.get(job['id'])
     return harvest_job_dictize(job_obj, context)
+
+
+
+def harvest_source_reindex(context, data_dict):
+    '''Reindex a single harvest source'''
+
+    harvest_source_id = get_or_bust(data_dict, 'id')
+    defer_commit = False #context.get('defer_commit', False)
+
+    if 'extras_as_string'in context:
+        del context['extras_as_string']
+    context.update({'ignore_auth': True})
+    package_dict = get_action('harvest_source_show')(context,
+        {'id': harvest_source_id})
+    log.debug('Updating search index for harvest source {0}'.format(harvest_source_id))
+
+    # Remove configuration values
+    new_dict = {}
+    if package_dict.get('config'):
+        config = json.loads(package_dict['config'])
+        for key, value in package_dict.iteritems():
+            if key not in config:
+                new_dict[key] = value
+    package_index = PackageSearchIndex()
+    package_index.index_package(new_dict, defer_commit=defer_commit)
+
+    return True

@@ -24,6 +24,22 @@ def harvest_source_update(context, data_dict):
                        % (str(user), source.id)}
     return {'success': True}
 
+def harvest_source_clear(context, data_dict):
+    '''
+        Authorization check for clearing a harvest source
+
+        It forwards to harvest_source_update
+    '''
+    return harvest_source_update(context, data_dict)
+
+def harvest_source_reindex(context, data_dict):
+    '''
+        Authorization check for reindexing a harvest source
+
+        It forwards to harvest_source_update
+    '''
+    return harvest_source_update(context, data_dict)
+
 
 def harvest_objects_import(context, data_dict):
     #model = context['model']
