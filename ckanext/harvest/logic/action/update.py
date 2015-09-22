@@ -117,7 +117,8 @@ def harvest_source_clear(context, data_dict):
         log.info('Removing Harvest source datasets from solr before deletion: %s', harvest_source_id)
 
     for pid in ids:
-        clear_package(pid)
+        if pid:
+            clear_package(pid)
 
 
     sql = "select id from related where id in (select related_id from related_dataset where dataset_id in (select package_id from harvest_object where harvest_source_id = '{harvest_source_id}'));".format(harvest_source_id=harvest_source_id)
