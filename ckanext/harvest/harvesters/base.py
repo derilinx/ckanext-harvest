@@ -1,13 +1,14 @@
 import logging
 import datetime
 import uuid
+import re
 
 from sqlalchemy.sql import update, bindparam
 import pylons
 
 from ckan import logic
 from ckan import model
-from ckan.model import Session, Package
+from ckan.model import Session, Package, PACKAGE_NAME_MAX_LENGTH
 from ckan.lib import maintain
 from ckan.logic import ValidationError, NotFound, get_action
 from ckan.logic.schema import default_create_package_schema
@@ -53,42 +54,112 @@ class HarvesterBase(SingletonPlugin):
     munge_tags = munge_tags
 
     @staticmethod
-    def munge_title_to_name(title):
+    def _munge_title_to_name(title):
         '''
         Creates a URL friendly name from a title. Compared to the ckan method
-        munge_title_to_name, for spaces this version uses dashes rather than
-        underscores.
+        munge_title_to_name, this version also collapses multiple dashes into
+        single ones.
         '''
-        name = munge_title_to_name(title).replace('_', '-')
-        while '--' in name:
-            name = name.replace('--', '-')
+        name = munge_title_to_name(title)
+        name = re.sub('-+', '-', name)  # collapse multiple dashes
         return name
-    _gen_new_name = munge_title_to_name
+    munge_title_to_name = _munge_title_to_name
+
+    @classmethod
+    def _gen_new_name(cls, title, existing_name=None,
+                      append_type='number-sequence'):
+        '''
+        Returns a 'name' for the dataset (URL friendly), based on the title.
+
+        If the ideal name is already used, it will append a number to it to
+        ensure it is unique.
+
+        If generating a new name because the title of the dataset has changed,
+        specify the existing name, in case the name doesn't need to change
+        after all.
+
+        :param existing_name: the current name of the dataset - only specify
+                              this if the dataset exists
+        :type existing_name: string
+        :param append_type: the type of characters to add to make it unique -
+                            either 'number-sequence' or 'random-hex'.
+        :type append_type: string
+        '''
+
+        ideal_name = munge_title_to_name(title)
+        ideal_name = re.sub('-+', '-', ideal_name)  # collapse multiple dashes
+        return cls._ensure_name_is_unique(ideal_name,
+                                          existing_name=existing_name,
+                                          append_type=append_type)
 
     @staticmethod
-    def check_name(name, existing_name=None):
+    def _ensure_name_is_unique(ideal_name, existing_name=None,
+                               append_type='number-sequence'):
         '''
-        Checks if another dataset has the name already. If it does, then it
-        a counter at the end if it does exist. Returns the adjusted name.
+        Returns a dataset name based on the ideal_name, only it will be
+        guaranteed to be different than all the other datasets, by adding a
+        number on the end if necessary.
 
-        :param name: the ideal name for the dataset
-        :param existing_name: the name of the dataset as it stands
+        If generating a new name because the title of the dataset has changed,
+        specify the existing name, in case the name doesn't need to change
+        after all.
+
+        The maximum dataset name length is taken account of.
+
+        :param ideal_name: the desired name for the dataset, if its not already
+                           been taken (usually derived by munging the dataset
+                           title)
+        :type ideal_name: string
+        :param existing_name: the current name of the dataset - only specify
+                              this if the dataset exists
+        :type existing_name: string
+        :param append_type: the type of characters to add to make it unique -
+                            either 'number-sequence' or 'random-hex'.
+        :type append_type: string
         '''
-        like_q = u'%s%%' % name
-        pkg_query = Session.query(Package).filter(Package.name.ilike(like_q)).limit(1000)
-        taken = set([pkg.name for pkg in pkg_query])
+        ideal_name = ideal_name[:PACKAGE_NAME_MAX_LENGTH]
+        if existing_name == ideal_name:
+            return ideal_name
+        if append_type == 'number-sequence':
+            MAX_NUMBER_APPENDED = 999
+            APPEND_MAX_CHARS = len(str(MAX_NUMBER_APPENDED))
+        elif append_type == 'random-hex':
+            APPEND_MAX_CHARS = 5  # 16^5 = 1 million combinations
+        else:
+            raise NotImplementedError('append_type cannot be %s' % append_type)
+        # Find out which package names have been taken. Restrict it to names
+        # derived from the ideal name plus and numbers added
+        like_q = u'%s%%' % \
+            ideal_name[:PACKAGE_NAME_MAX_LENGTH-APPEND_MAX_CHARS]
+        name_results = Session.query(Package.name)\
+                              .filter(Package.name.ilike(like_q))\
+                              .all()
+        taken = set([name_result[0] for name_result in name_results])
         if existing_name and existing_name in taken:
             taken.remove(existing_name)
-        if name not in taken:
-            return name
-        else:
+        if ideal_name not in taken:
+            # great, the ideal name is available
+            return ideal_name
+        elif existing_name and existing_name.startswith(ideal_name):
+            # the ideal name is not available, but its an existing dataset with
+            # a name based on the ideal one, so there's no point changing it to
+            # a different number
+            return existing_name
+        elif append_type == 'number-sequence':
+            # find the next available number
             counter = 1
-            while counter < 1001:
-                if name+str(counter) not in taken:
-                    return name+str(counter)
+            while counter <= MAX_NUMBER_APPENDED:
+                candidate_name = \
+                    ideal_name[:PACKAGE_NAME_MAX_LENGTH-len(str(counter))] + \
+                    str(counter)
+                if candidate_name not in taken:
+                    return candidate_name
                 counter = counter + 1
             return None
-    _check_name = check_name  # for backwards compatibility
+        elif append_type == 'random-hex':
+            return ideal_name[:PACKAGE_NAME_MAX_LENGTH-APPEND_MAX_CHARS] + \
+                str(uuid.uuid4())[:APPEND_MAX_CHARS]
+    check_name=_ensure_name_is_unique
 
     @staticmethod
     def extras_from_dict(extras_dict):
@@ -243,7 +314,7 @@ class HarvesterBase(SingletonPlugin):
                 context.pop('__auth_audit', None)
 
                 # Set name if not already there
-                package_dict.setdefault('name', self.munge_title_to_name(package_dict['title']))
+                package_dict['name'] = self._gen_new_name(package_dict['title'])
 
                 log.info('Package with GUID %s does not exist, let\'s create it' % harvest_object.guid)
                 harvest_object.current = True
