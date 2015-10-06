@@ -343,8 +343,8 @@ class CKANHarvester(DguHarvesterBase):
                 # look in the extra for backward compatibility only
             if not self.config.get('force_all'):
                 if previous_modified == modified:
-                    log.info('Skipping unchanged package with GUID %s' %
-                            harvest_object.guid)
+                    log.info('Skipping unchanged package with GUID %s (%s)',
+                             harvest_object.guid, modified)
                     return 'unchanged'  # it will not carry on to import_stage
 
                 if previous_modified > modified:

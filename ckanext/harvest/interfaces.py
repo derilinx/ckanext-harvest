@@ -63,10 +63,12 @@ class IHarvester(Interface):
             - saving the content in the provided HarvestObject.
             - creating and storing any suitable HarvestObjectErrors that may
               occur.
-            - returning True if everything went as expected, False otherwise.
+            - returning True, 'unchanged' or False, to indicate how things
+              went.
 
         :param harvest_object: HarvestObject object
-        :returns: True if everything went right, False if errors were found
+        :returns: True if successful, 'unchanged' if nothing to import after
+                  all, False if not successful
         '''
 
     def import_stage(self, harvest_object):
@@ -84,7 +86,8 @@ class IHarvester(Interface):
             - creating the HarvestObject - Package relation (if necessary)
             - creating and storing any suitable HarvestObjectErrors that may
               occur.
-            - returning True, 'nochange' or False, to indicate how things went.
+            - returning True, 'unchanged' or False, to indicate how things
+              went.
 
         NB You can run this stage repeatedly using 'paster harvest import'.
 
