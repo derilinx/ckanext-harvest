@@ -36,13 +36,6 @@ class TestMungeTags:
         assert_equal(pkg['tags'], [{'name': 'geo'}])
 
 
-def test_extras_from_dict():
-    res = HarvesterBase.extras_from_dict({'theme': 'environment',
-                                          'freq': 'daily'})
-    assert_equal(res, [{'key': 'theme', 'value': 'environment'},
-                       {'key': 'freq', 'value': 'daily'}])
-
-
 def test_match_resources_with_existing_ones():
     res_dicts = [{'url': 'url1', 'name': 'name', 'description': 'desc'},
                  {'url': 'url3', 'name': 'name', 'description': 'desc'},
