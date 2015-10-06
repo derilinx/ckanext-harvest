@@ -34,7 +34,7 @@ setup(
 	# Add plugins here, eg
 	harvest=ckanext.harvest.plugin:Harvest
 	ckan_harvester=ckanext.harvest.harvesters.ckanharvester:CKANHarvester
-    dkan_harvester=ckanext.harvest.harvesters.dkanharvester:DKANHarvester
+	dkan_harvester=ckanext.harvest.harvesters.dkanharvester:DKANHarvester
 	[paste.paster_command]
 	harvester = ckanext.harvest.commands.harvester:Harvester
 	""",
