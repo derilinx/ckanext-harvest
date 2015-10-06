@@ -1,5 +1,6 @@
 from ckan.plugins.interfaces import Interface
 
+
 class IHarvester(Interface):
     '''
     Common harvesting interface
@@ -8,8 +9,8 @@ class IHarvester(Interface):
 
     def info(self):
         '''
-        Harvesting implementations must provide this method, which will return a
-        dictionary containing different descriptors of the harvester. The
+        Harvesting implementations must provide this method, which will return
+        a dictionary containing different descriptors of the harvester. The
         returned dictionary should contain:
 
         * name: machine-readable name. This will be the value stored in the
@@ -17,8 +18,8 @@ class IHarvester(Interface):
           harvester.
         * title: human-readable name. This will appear in the form's select box
           in the WUI.
-        * description: a small description of what the harvester does. This will
-          appear on the form as a guidance to the user.
+        * description: a small description of what the harvester does. This
+        will appear on the form as a guidance to the user.
 
         A complete example may be::
 
@@ -46,7 +47,8 @@ class IHarvester(Interface):
             - creating and storing any suitable HarvestGatherErrors that may
               occur.
             - returning a list with all the ids of the created HarvestObjects.
-            - to abort, raise an exception. Any created HarvestObjects will be deleted.
+            - to abort, raise an exception. Any created HarvestObjects will be
+              deleted.
 
         :param harvest_job: HarvestJob object
         :returns: A list of HarvestObject ids
@@ -61,10 +63,12 @@ class IHarvester(Interface):
             - saving the content in the provided HarvestObject.
             - creating and storing any suitable HarvestObjectErrors that may
               occur.
-            - returning True if everything went as expected, False otherwise.
+            - returning True, 'unchanged' or False, to indicate how things
+              went.
 
         :param harvest_object: HarvestObject object
-        :returns: True if everything went right, False if errors were found
+        :returns: True if successful, 'unchanged' if nothing to import after
+                  all, False if not successful
         '''
 
     def import_stage(self, harvest_object):
@@ -72,15 +76,22 @@ class IHarvester(Interface):
         The import stage will receive a HarvestObject object and will be
         responsible for:
             - performing any necessary action with the fetched object (e.g
-              create a CKAN package).
-              Note: if this stage creates or updates a package, a reference
-              to the package should be added to the HarvestObject.
+              create, update or delete a CKAN package).
+            - if this stage creates or updates a package, a reference
+              to the package should be added to the HarvestObject
+            - if this stage is successful, this HarvestObject's `current` flag
+              should be set to True, and on previous HarvestObjects for this
+              package guid should be set to False.
+              previous ones related to this CKAN package.
             - creating the HarvestObject - Package relation (if necessary)
             - creating and storing any suitable HarvestObjectErrors that may
               occur.
-            - returning True if everything went as expected, False otherwise.
+            - returning True, 'unchanged' or False, to indicate how things
+              went.
+
+        NB You can run this stage repeatedly using 'paster harvest import'.
 
         :param harvest_object: HarvestObject object
-        :returns: True if everything went right, False if errors were found
+        :returns: True if successful, 'unchanged' if nothing to do, False if
+                  not successful
         '''
-
