@@ -117,7 +117,8 @@ def harvest_source_clear(context, data_dict):
         log.info('Removing Harvest source datasets from solr before deletion: %s', harvest_source_id)
 
     for pid in ids:
-        clear_package(pid)
+        if pid:
+            clear_package(pid)
 
 
     sql = "select id from related where id in (select related_id from related_dataset where dataset_id in (select package_id from harvest_object where harvest_source_id = '{harvest_source_id}'));".format(harvest_source_id=harvest_source_id)
@@ -186,31 +187,6 @@ def harvest_source_clear(context, data_dict):
 
     return {'id': harvest_source_id}
 
-def harvest_source_index_clear(context,data_dict):
-
-    check_access('harvest_source_clear',context,data_dict)
-    harvest_source_id = data_dict.get('id',None)
-
-    source = HarvestSource.get(harvest_source_id)
-    if not source:
-        log.error('Harvest source %s does not exist', harvest_source_id)
-        raise NotFound('Harvest source %s does not exist' % harvest_source_id)
-
-    harvest_source_id = source.id
-
-    conn = make_connection()
-    query = ''' +publisher:"%s"''' % ('harvest_source_id', harvest_source_id)
-    try:
-        conn.delete_query(query)
-        if t.asbool(config.get('ckan.search.solr_commit', 'true')):
-            conn.commit()
-    except Exception, e:
-        log.exception(e)
-        raise SearchIndexError(e)
-    finally:
-        conn.close()
-
-    return {'id': harvest_source_id}
 
 def harvest_objects_import(context,data_dict):
     '''

@@ -41,10 +41,11 @@ class HarvesterBase(SingletonPlugin):
     '''
     Generic base class for harvesters, providing a number of useful functions.
 
-    A harvester doesn't have to derive from this - it should just have:
+    A harvester doesn't have to derive from this - it could just have:
 
         implements(IHarvester)
     '''
+    implements(IHarvester)
     config = None
 
     @classmethod

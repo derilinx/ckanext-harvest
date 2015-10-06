@@ -229,7 +229,8 @@ class HarvestGatherError(HarvestDomainObject):
             Session.rollback()
             err.save()
         finally:
-            log.error(message)
+            # No need to alert administrator so don't log as an error, just info
+            log.info(message)
 
 
 class HarvestObjectError(HarvestDomainObject):
