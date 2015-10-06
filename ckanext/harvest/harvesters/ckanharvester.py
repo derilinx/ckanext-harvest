@@ -13,14 +13,13 @@ from ckan.plugins.core import implements
 from ckanext.harvest.model import HarvestJob, HarvestObject, \
                                   HarvestObjectError, HarvestObjectExtra
 from ckanext.harvest.interfaces import IHarvester
+from ckanext.harvest.harvesters.dgu_base import DguHarvesterBase
 
 import logging
 log = logging.getLogger(__name__)
 
-from base import HarvesterBase
 
-
-class CKANHarvester(HarvesterBase):
+class CKANHarvester(DguHarvesterBase):
     '''
     A Harvester for CKAN instances
     '''
@@ -184,7 +183,7 @@ class CKANHarvester(HarvesterBase):
                             try:
                                 content = self._get_content(url)
                             except Exception, e:
-                                self.save_gather_error(
+                                self._save_gather_error(
                                     'Unable to get content for URL: %s: %s' %
                                     (url, e), harvest_job)
                                 continue
@@ -206,7 +205,7 @@ class CKANHarvester(HarvesterBase):
                         log.info('CKAN instance %s does not suport revision filtering' % base_url)
                         get_all_packages = True
                     else:
-                        self.save_gather_error(
+                        self._save_gather_error(
                             'Unable to get content for URL: %s: %s' %
                             (url, e), harvest_job)
                         return None
@@ -224,7 +223,7 @@ class CKANHarvester(HarvesterBase):
         try:
             object_ids = []
             if not package_ids:
-                self.save_gather_error('No datasets listed',
+                self._save_gather_error('No datasets listed',
                                        harvest_job)
                 return None
 
@@ -238,7 +237,7 @@ class CKANHarvester(HarvesterBase):
             return object_ids
 
         except Exception, e:
-            self.save_gather_error('%r' % e.message, harvest_job)
+            self._save_gather_error('%r' % e.message, harvest_job)
 
     def _get_all_packages(self, base_url, harvest_job):
         log = logging.getLogger(__name__ + '.gather')
@@ -275,7 +274,7 @@ class CKANHarvester(HarvesterBase):
         try:
             dataset = json.loads(content)
         except ValueError, e:
-            self.save_object_error(
+            self._save_object_error(
                 'CKAN content could not be deserialized: %s: %r' % (url, e),
                 harvest_object)
             return False
@@ -318,14 +317,14 @@ class CKANHarvester(HarvesterBase):
         modified = dataset.get('metadata_modified')
         # e.g. "2014-05-10T02:22:05.483412"
         if not modified:
-            self.save_object_error(
+            self._save_object_error(
                 'CKAN content did not have metadata_modified: %s' % url,
                 harvest_object)
             return False
         try:
             modified = dateutil.parser.parse(modified)
         except ValueError:
-            self.save_object_error(
+            self._save_object_error(
                 'CKAN modified date did not parse: %s url: %s' % (modified, url),
                 harvest_object)
             return False
@@ -348,7 +347,7 @@ class CKANHarvester(HarvesterBase):
                     return 'unchanged'  # it will not carry on to import_stage
 
                 if previous_modified > modified:
-                    self.save_object_error('CKAN modification date is earlier than when it was last harvested! %s Last harvest: %s This harvest: %s' %
+                    self._save_object_error('CKAN modification date is earlier than when it was last harvested! %s Last harvest: %s This harvest: %s' %
                                             (url, previous_modified, modified),
                                             harvest_object)
             log.info('Package with GUID %s exists and needs to be updated' %
@@ -385,10 +384,16 @@ class CKANHarvester(HarvesterBase):
         try:
             package_dict_harvested = json.loads(harvest_object.content)
         except ValueError, e:
-            cls.save_object_error('CKAN content could not be deserialized: %s: %r' % \
+            cls._save_object_error('CKAN content could not be deserialized: %s: %r' % \
                                     (harvest_object.url, e), harvest_object)
             return None
         return package_dict_harvested
+
+    @classmethod
+    def get_name(cls, remote_name, title, existing_local_name):
+        # try and use the harvested name if possible
+        return cls._gen_new_name(remote_name or title,
+                                 existing_name=existing_local_name)
 
     def get_package_dict(self, harvest_object, package_dict_defaults,
                          source_config, existing_dataset):
@@ -403,15 +408,10 @@ class CKANHarvester(HarvesterBase):
             package_dict['extras'].update(package_dict_defaults['extras'])
         source_config['clean_tags'] = True
 
-        # name - ignore the default value because we should try and use the
-        # harvested name if possible.
-        package_dict['name'] = package_dict_harvested.get('name') or \
-                               self._gen_new_name(package_dict['title'])
-        if not existing_dataset:
-            package_dict['name'] = self._check_name(package_dict['name'])
-        elif package_dict['name'] != existing_dataset.name:
-            package_dict['name'] = self._check_name(package_dict['name'],
-                                        existing_name=existing_dataset.name)
+        package_dict['name'] = self.get_name(
+            package_dict_harvested.get('name'),
+            package_dict['title'],
+            existing_dataset.name if existing_dataset else None)
 
         if package_dict.get('type') == 'harvest':
             log.debug('Remote dataset is a harvest source, ignoring...')
@@ -480,7 +480,7 @@ class CKANHarvester(HarvesterBase):
                     data_dict = {'id': remote_org}
                     org = get_action('organization_show')(context, data_dict)
                     validated_org = org['id']
-                except NotFound, e:
+                except NotFound:
                     log.info('Organization %s is not available' % remote_org)
                     if remote_orgs == 'create':
                         try:
