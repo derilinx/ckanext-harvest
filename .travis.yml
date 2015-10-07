@@ -3,6 +3,7 @@ python:
     - "2.7"
 env:
     - CKANVERSION=2.2
+    - CKANVERSION=2.2-dgu
 services:
     - redis-server
 install:
