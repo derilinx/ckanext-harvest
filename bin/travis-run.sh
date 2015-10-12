@@ -1,5 +1,6 @@
 #!/bin/bash
 set -e
+set -x  # echo commands as they are run
 
 if [ $CKANVERSION == '2.2-dgu' ]
 then
