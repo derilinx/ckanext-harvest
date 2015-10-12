@@ -8,17 +8,15 @@ sudo apt-get update -qq
 sudo apt-get install postgresql-9.1 solr-jetty libcommons-fileupload-java:amd64=1.2.2-1
 
 echo "Installing CKAN and its Python dependencies..."
-git clone https://github.com/ckan/ckan
-cd ckan
 if [ $CKANVERSION == '2.2-dgu' ]
 then
-    git add remote dgu https://github.com/datagovuk/ckan
-    git pull dgu release-v2.2-dgu
+    git clone -b release-v2.2-dgu https://github.com/datagovuk/ckan
     sudo apt-get install rabbitmq-server
 elif [ $CKANVERSION == '2.2' ]
 then
-    git checkout release-v2.2.3
+    git clone -b release-v2.2.3 https://github.com/ckan/ckan
 fi
+cd ckan
 python setup.py develop
 pip install -r requirements.txt --allow-all-external
 pip install -r dev-requirements.txt --allow-all-external
