@@ -11,7 +11,6 @@ echo "Installing CKAN and its Python dependencies..."
 if [ $CKANVERSION == '2.2-dgu' ]
 then
     git clone -b release-v2.2-dgu https://github.com/datagovuk/ckan
-    sudo apt-get install rabbitmq-server
 elif [ $CKANVERSION == '2.2' ]
 then
     git clone -b release-v2.2.3 https://github.com/ckan/ckan

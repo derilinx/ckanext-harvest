@@ -6,6 +6,7 @@ env:
     - CKANVERSION=2.2-dgu
 services:
     - redis-server
+    - rabbitmq
 install:
     - bash bin/travis-build.bash
 script: bash bin/travis-run.sh
