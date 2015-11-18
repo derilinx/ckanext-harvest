@@ -27,17 +27,22 @@ class ViewController(BaseController):
     def index(self):
         context = {'model': model, 'user': c.user, 'session': model.Session,
                    'include_status': False}
-        try:
+
+
+        # try:
             # Request all harvest sources
-            c.sources = p.toolkit.get_action('harvest_source_list')(context,{})
-        except p.toolkit.NotAuthorized,e:
-            abort(401,self.not_auth_message)
+        c.sources = p.toolkit.get_action('harvest_source_list')(context,{})
+        # except p.toolkit.NotAuthorized,e:
+            # abort(401,self.not_auth_message)
+
+
 
         c.sources = sorted(c.sources,key=lambda source : source['publisher_title'])
 
         c.status = config.get('ckan.harvest.status')
 
-        return render('index.html')
+        #some strange issue with index.html getting the homepage, not the harvest page
+        return render('harvest.html')
 
     def new(self,data = None,errors = None, error_summary = None):
 
