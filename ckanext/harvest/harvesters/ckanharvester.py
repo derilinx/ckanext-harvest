@@ -185,6 +185,8 @@ class CKANHarvester(HarvesterBase):
         # modified since the last completely successful harvest.
         last_error_free_job = self._last_error_free_job(harvest_job)
         log.debug('Last error-free job: %r', last_error_free_job)
+        #remove this after first harvest
+        self.config['force_all'] = True
         if (last_error_free_job and
                 not self.config.get('force_all', False)):
             get_all_packages = False
@@ -371,7 +373,7 @@ class CKANHarvester(HarvesterBase):
         log.debug('In CKANHarvester import_stage')
 
         context = {'model': model, 'session': model.Session,
-                   'user': 'admin'}
+                   'user': 'user_d1'}
                    # 'user': self._get_user_name()}
         if not harvest_object:
             log.error('No harvest object received')
@@ -400,7 +402,7 @@ class CKANHarvester(HarvesterBase):
                 package_dict['tags'].extend(
                     [t for t in default_tags if t not in package_dict['tags']])
 
-            remote_groups = self.config.get('remote_groups', None)
+            remote_groups = self.config.get('remote_groups', 'only_local')
             if not remote_groups in ('only_local', 'create'):
                 # Ignore remote groups
                 package_dict.pop('groups', None)
@@ -444,7 +446,7 @@ class CKANHarvester(HarvesterBase):
             source_dataset = get_action('package_show')(context, {'id': harvest_object.source.id})
             local_org = source_dataset.get('owner_org')
 
-            remote_orgs = self.config.get('remote_orgs', None)
+            remote_orgs = self.config.get('remote_orgs', 'only_local')
 
             if not remote_orgs in ('only_local', 'create'):
                 # Assign dataset to the source organization
@@ -534,18 +536,29 @@ class CKANHarvester(HarvesterBase):
 
 
             # we're doing our dublinked mapping here.
-            # package_dict['tags'] = [t.get('name') for t in package_dict['tags']]
+            package_dict['tags'] = [t.get('name') for t in package_dict['tags']]
+
             if (package_dict['license_id'] == 'CC-BY-4.0'):
                 package_dict['license_id'] = 'cc-by'
 
             theme_map = {
                 "Transport and Infrastructure": "Transport",
                 "Planning and Land Use": "Housing",
+                "Environment and Energy": "Energy",
+                "Government and Participation": "Government",
+                "Recreation and Amenities": "Towns",
+                "Population and Communities": "Society",
+                "Arts Culture and Heritage": "Arts",
+                "Public Health and Safety": "Health",
+                "Economy and Innovation": "Economy",
             }
             package_dict['theme-primary'] = theme_map[package_dict['category']]
             package_dict.pop('category', None)
 
-            package_dict['collection-name'] = 'dublinked-ckan'
+            if not package_dict['theme-primary']:
+                package_dict['theme-primary'] = 'Towns'
+
+            package_dict['collection-name'] = 'dublinked'
             package_dict['language'] = 'eng' # they don't use this, so hardcode
             package_dict['url'] = "https://data.dublinked.ie/dataset/%s" % package_dict['name']
 
@@ -572,7 +585,7 @@ class CKANHarvester(HarvesterBase):
                 if e['key'] == 'Purpose of Collection':
                     package_dict['lineage'] = e['value']
 
-            result = self._create_or_update_package(package_dict, harvest_object, package_dict_form='package_show')
+            result = self._create_or_update_package(package_dict, harvest_object)
 
             return result
         except ValidationError, e:
@@ -580,7 +593,7 @@ class CKANHarvester(HarvesterBase):
                                     (harvest_object.guid, e.error_dict),
                                     harvest_object, 'Import')
         except Exception, e:
-            log.debug(e)
+            log.debug("Exception! %s", e)
             self._save_object_error('%s' % e, harvest_object, 'Import')
 
 

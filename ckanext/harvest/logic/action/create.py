@@ -141,6 +141,7 @@ def _check_for_existing_jobs(context, source_id):
     exist_running = harvest_job_list(context,data_dict)
     exist = len(exist_new + exist_running) > 0
 
+    return False
     return exist
 
 def harvest_object_create(context, data_dict):
