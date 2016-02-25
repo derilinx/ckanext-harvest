@@ -205,9 +205,13 @@ class HarvesterBase(SingletonPlugin):
                 # Set name if not already there
                 package_dict.setdefault('name', self._gen_new_name(package_dict['title']))
 
-                log.info('Package with GUID %s does not exist, let\'s create it' % harvest_object.guid)
+                log.info('Package with name %s does not exist, let\'s create it' % package_dict['name'])
                 harvest_object.current = True
-                harvest_object.package_id = package_dict['id']
+                harvest_object.add()
+
+                new_package = get_action('package_create_rest')(context, package_dict)
+
+                harvest_object.package_id = new_package['id']
                 # Defer constraints and flush so the dataset can be indexed with
                 # the harvest object id (on the after_show hook from the harvester
                 # plugin)
@@ -215,8 +219,6 @@ class HarvesterBase(SingletonPlugin):
 
                 model.Session.execute('SET CONSTRAINTS harvest_object_package_id_fkey DEFERRED')
                 model.Session.flush()
-
-                new_package = get_action('package_create_rest')(context, package_dict)
 
             Session.commit()
 

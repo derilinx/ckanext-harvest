@@ -21,6 +21,8 @@ log = logging.getLogger(__name__)
 from base import HarvesterBase
 
 org_blacklist = [
+    '89a1c72e-fba7-4935-9575-956325cc03f6',
+    'nui-maynooth-airo',
     'national-transport-authority'
 ]
 dataset_whitelist = [
@@ -446,7 +448,7 @@ class CKANHarvester(HarvesterBase):
             source_dataset = get_action('package_show')(context, {'id': harvest_object.source.id})
             local_org = source_dataset.get('owner_org')
 
-            remote_orgs = self.config.get('remote_orgs', 'only_local')
+            remote_orgs = self.config.get('remote_orgs', 'create')
 
             if not remote_orgs in ('only_local', 'create'):
                 # Assign dataset to the source organization
@@ -467,7 +469,7 @@ class CKANHarvester(HarvesterBase):
                         log.info('Got org %s', validated_org)
                     except NotFound, e:
                         log.info('Organization %s is not available', remote_org)
-                        if remote_orgs == 'create':
+                        if remote_orgs == 'create' and remote_org not in org_blacklist:
                             try:
                                 try:
                                     org = self._get_organization(harvest_object.source.url, remote_org)
@@ -478,6 +480,9 @@ class CKANHarvester(HarvesterBase):
 
                                 for key in ['packages', 'created', 'users', 'groups', 'tags', 'extras', 'display_name', 'type']:
                                     org.pop(key, None)
+                                org['contact-name']='-'
+                                org['contact-email']='-'
+                                org['contact-phone']='-'
                                 get_action('organization_create')(context, org)
                                 log.info('Organization %s has been newly created', remote_org)
                                 validated_org = org['name']
@@ -534,6 +539,9 @@ class CKANHarvester(HarvesterBase):
                 # key.
                 resource.pop('revision_id', None)
 
+            if len(package_dict.get('resources')) == 0:
+                log.error('No resources for %s' % package_dict.get('name'))
+                return False
 
             # we're doing our dublinked mapping here.
             package_dict['tags'] = [t.get('name') for t in package_dict['tags']]
@@ -552,18 +560,20 @@ class CKANHarvester(HarvesterBase):
                 "Public Health and Safety": "Health",
                 "Economy and Innovation": "Economy",
             }
-            package_dict['theme-primary'] = theme_map[package_dict['category']]
-            package_dict.pop('category', None)
-
-            if not package_dict['theme-primary']:
+            if (package_dict['category'] in theme_map):
+                package_dict['theme-primary'] = theme_map[package_dict['category']]
+            else:
                 package_dict['theme-primary'] = 'Towns'
 
-            package_dict['collection-name'] = 'dublinked'
+            package_dict.pop('category', None)
+
+            package_dict['collection-name'] = 'dublinked-ckan'
             package_dict['language'] = 'eng' # they don't use this, so hardcode
             package_dict['url'] = "https://data.dublinked.ie/dataset/%s" % package_dict['name']
 
             if (package_dict['owner_org'] in org_blacklist) and (package_dict['name'] not in dataset_whitelist):
-                    package_dict['state'] = 'deleted'
+                log.error('Org %s for dataset %s in blacklist!' % (package_dict['owner_org'], package_dict['name']))
+                return False
 
             #"Spatial Administrative Area",
             #"Use Constraints",
@@ -593,8 +603,8 @@ class CKANHarvester(HarvesterBase):
                                     (harvest_object.guid, e.error_dict),
                                     harvest_object, 'Import')
         except Exception, e:
-            log.debug("Exception! %s", e)
-            self._save_object_error('%s' % e, harvest_object, 'Import')
+            log.debug("Exception! %s of %s" % (e, package_dict['name']))
+            self._save_object_error('Exception: %s' % e, harvest_object, 'Import')
 
 
 def normalize_date (datestring):
