@@ -544,6 +544,10 @@ class CKANHarvester(HarvesterBase):
                 # key.
                 resource.pop('revision_id', None)
 
+                resource.pop('package_id', None)
+		resource.pop('__extras', None);
+                resource.pop('type', None)
+
             if len(package_dict.get('resources')) == 0:
                 log.error('No resources for %s' % package_dict.get('name'))
 		self._save_object_error('No resources for %s!' % (package_dict['owner_org'], package_dict['name']), harvest_object, 'Import')
