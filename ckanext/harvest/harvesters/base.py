@@ -132,14 +132,14 @@ class HarvesterBase(SingletonPlugin):
             # Check API version
             if self.config:
                 try:
-                    api_version = int(self.config.get('api_version', 2))
+                    api_version = int(self.config.get('api_version', 3))
                 except ValueError:
                     raise ValueError('api_version must be an integer')
 
                 #TODO: use site user when available
                 user_name = self.config.get('user', u'user_d1')
             else:
-                api_version = 2
+                api_version = 3
                 user_name = u'user_d1'
 
             context = {
@@ -169,13 +169,17 @@ class HarvesterBase(SingletonPlugin):
                 # Check modified date
                 if True or not 'metadata_modified' in package_dict or \
                    package_dict['metadata_modified'] > existing_package_dict.get('metadata_modified'):
-                    log.info('Package with GUID %s exists and needs to be updated' % harvest_object.guid)
+                    log.info('Package with GUID %s name %s exists and needs to be updated' % (harvest_object.guid, package_dict['name']))
                     # Update package
                     package_dict['id'] = existing_package_dict['id']
                     context.update({'id':existing_package_dict['id']})
                     package_dict.setdefault('name',
                             existing_package_dict['name'])
-                    new_package = get_action('package_update_rest')(context, package_dict)
+                    if (not package_dict['owner_org'] == 'dublinkedie'):
+                        new_package = get_action('package_update')(context, package_dict)
+                        log.debug(new_package)
+                    else:
+                        return False
 
                 else:
                     log.info('Package with GUID %s not updated, skipping...' % harvest_object.guid)
@@ -209,7 +213,7 @@ class HarvesterBase(SingletonPlugin):
                 harvest_object.current = True
                 harvest_object.add()
 
-                new_package = get_action('package_create_rest')(context, package_dict)
+                new_package = get_action('package_create')(context, package_dict)
 
                 harvest_object.package_id = new_package['id']
                 # Defer constraints and flush so the dataset can be indexed with

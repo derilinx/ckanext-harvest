@@ -141,6 +141,8 @@ def _check_for_existing_jobs(context, source_id):
     exist_running = harvest_job_list(context,data_dict)
     exist = len(exist_new + exist_running) > 0
 
+    # I pretty much just don't trust this thing. Check the log to make sure
+    # one isn't running at the same time.
     return False
     return exist
 

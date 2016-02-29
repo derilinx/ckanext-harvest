@@ -469,7 +469,7 @@ class CKANHarvester(HarvesterBase):
                         log.info('Got org %s', validated_org)
                     except NotFound, e:
                         log.info('Organization %s is not available', remote_org)
-                        if remote_orgs == 'create' and remote_org not in org_blacklist:
+                        if remote_orgs == 'create' and not remote_org in org_blacklist:
                             try:
                                 try:
                                     org = self._get_organization(harvest_object.source.url, remote_org)
@@ -489,7 +489,12 @@ class CKANHarvester(HarvesterBase):
                             except (RemoteResourceError, ValidationError):
                                 log.error('Could not get remote org %s', remote_org)
 
-                package_dict['owner_org'] = validated_org or local_org
+                if validated_org not in org_blacklist:
+                    package_dict['owner_org'] = validated_org or local_org
+                else:
+		    self._save_object_error('Org in blaclist %s %s' % (package_dict['owner_org'], package_dict['name']), harvest_object, 'Import')
+                    return False
+                    
 
             # Set default groups if needed
             default_groups = self.config.get('default_groups', [])
@@ -541,10 +546,11 @@ class CKANHarvester(HarvesterBase):
 
             if len(package_dict.get('resources')) == 0:
                 log.error('No resources for %s' % package_dict.get('name'))
+		self._save_object_error('No resources for %s!' % (package_dict['owner_org'], package_dict['name']), harvest_object, 'Import')
                 return False
 
             # we're doing our dublinked mapping here.
-            package_dict['tags'] = [t.get('name') for t in package_dict['tags']]
+            #package_dict['tags'] = [t.get('name') for t in package_dict['tags']]
 
             if (package_dict['license_id'] == 'CC-BY-4.0'):
                 package_dict['license_id'] = 'cc-by'
@@ -573,6 +579,7 @@ class CKANHarvester(HarvesterBase):
 
             if (package_dict['owner_org'] in org_blacklist) and (package_dict['name'] not in dataset_whitelist):
                 log.error('Org %s for dataset %s in blacklist!' % (package_dict['owner_org'], package_dict['name']))
+		self._save_object_error('Org %s for dataset %s in blacklist!' % (package_dict['owner_org'], package_dict['name']), harvest_object, 'Import')
                 return False
 
             #"Spatial Administrative Area",
@@ -595,8 +602,11 @@ class CKANHarvester(HarvesterBase):
                 if e['key'] == 'Purpose of Collection':
                     package_dict['lineage'] = e['value']
 
+            log.debug(package_dict)
+
             result = self._create_or_update_package(package_dict, harvest_object)
 
+            log.debug(result)
             return result
         except ValidationError, e:
             self._save_object_error('Invalid package with GUID %s: %r' %
