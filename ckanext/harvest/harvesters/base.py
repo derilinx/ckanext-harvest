@@ -54,6 +54,15 @@ class HarvesterBase(SingletonPlugin):
         else:
             return name
 
+    def _get_object_extra(self, harvest_object, key):
+        '''
+        Helper function for retrieving the value from a harvest object extra,
+        given the key
+        '''
+        for extra in harvest_object.extras:
+            if extra.key == key:
+                return extra.value
+        return None
 
     def _save_gather_error(self, message, job):
         err = HarvestGatherError(message=message, job=job)

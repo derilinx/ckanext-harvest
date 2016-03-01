@@ -14,6 +14,7 @@ from ckan.lib.munge import munge_name
 from ckan.plugins import toolkit
 
 from ckanext.harvest.model import HarvestJob, HarvestObject, HarvestGatherError
+from ckanext.harvest.model import HarvestObjectExtra as HOExtra
 
 import logging
 log = logging.getLogger(__name__)
@@ -240,6 +241,22 @@ class CKANHarvester(HarvesterBase):
                 harvest_job)
             return None
 
+
+        query = model.Session.query(HarvestObject.guid, HarvestObject.package_id).\
+                filter(HarvestObject.current==True).\
+                filter(HarvestObject.harvest_source_id==harvest_job.source.id)
+
+        ###
+        # ok so, HarvestObject.guid is the dublinked package_id,
+        # and HarvestObject.package_id is the DGI package_id.
+        ###
+        guid_to_package_id = {}
+
+        for guid, package_id in query:
+            guid_to_package_id[guid] = package_id
+
+        guids_in_db = set(guid_to_package_id.keys())
+
         # Create harvest objects for each dataset
         try:
             package_ids = set()
@@ -253,10 +270,25 @@ class CKANHarvester(HarvesterBase):
                     continue
                 package_ids.add(pkg_dict['id'])
 
+            to_delete = guids_in_db - package_ids
+
+            for guid in to_delete:
+                log.debug("Creating HarvestObject to delete %s %s", guid, guid_to_package_id[guid])
+                obj = HarvestObject(guid=guid,
+                                    job=harvest_job,
+                                    extras=[HOExtra(key='status', value='delete')])
+                model.Session.query(HarvestObject).\
+                    filter_by(guid=guid).\
+                    update({'current': False}, False)
+                obj.save()
+                object_ids.append(obj.id)
+
+            for pkg_dict in pkg_dicts:
                 log.debug('Creating HarvestObject for %s %s',
                           pkg_dict['name'], pkg_dict['id'])
                 obj = HarvestObject(guid=pkg_dict['id'],
                                     job=harvest_job,
+                                    extras=[HOExtra(key='status', value='update')],
                                     content=json.dumps(pkg_dict))
                 obj.save()
                 object_ids.append(obj.id)
@@ -388,6 +420,19 @@ class CKANHarvester(HarvesterBase):
             return False
 
         self._set_config(harvest_object.job.source.config)
+
+        status = self._get_object_extra(harvest_object, 'status')
+
+        log.debug(status)
+        if status == 'delete':
+            # Delete package
+            context.update({
+                'ignore_auth': True,
+            })
+            p.toolkit.get_action('package_delete')(context, {'id': harvest_object.package_id})
+            log.debug('Deleted package {0} with guid {1}'.format(harvest_object.package_id, harvest_object.guid))
+
+            return True
 
         try:
             package_dict = json.loads(harvest_object.content)
