@@ -582,6 +582,10 @@ class CKANHarvester(HarvesterBase):
                 # Clear remote url_type for resources (eg datastore, upload) as
                 # we are only creating normal resources with links to the
                 # remote ones
+                if (resource.get('url_type') == 'datastore' and resource.get('url')[0] == '/'):
+                    # these are relative links
+                    resource['url'] = 'http://data.corkcity.ie' + resource.get('url')
+
                 resource.pop('url_type', None)
 
                 # Clear revision_id as the revision won't exist on this CKAN
@@ -590,12 +594,12 @@ class CKANHarvester(HarvesterBase):
                 resource.pop('revision_id', None)
 
                 resource.pop('package_id', None)
-		resource.pop('__extras', None);
+                resource.pop('__extras', None);
                 resource.pop('type', None)
 
             if len(package_dict.get('resources')) == 0:
                 log.error('No resources for %s' % package_dict.get('name'))
-		self._save_object_error('No resources for %s!' % (package_dict['owner_org'], package_dict['name']), harvest_object, 'Import')
+                self._save_object_error('No resources for %s!' % (package_dict['owner_org'], package_dict['name']), harvest_object, 'Import')
                 return False
 
             # we're doing our dublinked mapping here.
@@ -617,23 +621,33 @@ class CKANHarvester(HarvesterBase):
             }
             if (package_dict['category'] in theme_map):
                 package_dict['theme-primary'] = theme_map[package_dict['category']]
+            elif (package_dict['category'] in theme_map.values()):
+                package_dict['theme-primary'] = package_dict['category']
             else:
                 package_dict['theme-primary'] = 'Towns'
 
             package_dict.pop('category', None)
 
-            package_dict['collection-name'] = 'dublinked-ckan'
-            package_dict['language'] = 'eng' # they don't use this, so hardcode
-            package_dict['url'] = "https://data.dublinked.ie/dataset/%s" % package_dict['name']
+            srcname = harvest_object.job.source.title
+            if (srcname == 'corkcity'):
+                package_dict['collection-name'] = 'corkcity-ckan'
+                package_dict['url'] = "https://data.corkcity.ie/dataset/%s" % package_dict['name']
+                package_dict['title'] = package_dict['title']# + " - Cork"
+            else:
+                package_dict['collection-name'] = 'dublinked-ckan'
+                package_dict['url'] = "https://data.dublinked.ie/dataset/%s" % package_dict['name']
+
+            if not package_dict.get('language'):
+                package_dict['language'] = 'eng' # they don't use this, so hardcode
 
             if (package_dict['owner_org'] in org_blacklist) and (package_dict['name'] not in dataset_whitelist):
                 log.error('Org %s for dataset %s in blacklist!' % (package_dict['owner_org'], package_dict['name']))
-		self._save_object_error('Org %s for dataset %s in blacklist!' % (package_dict['owner_org'], package_dict['name']), harvest_object, 'Import')
+                self._save_object_error('Org %s for dataset %s in blacklist!' % (package_dict['owner_org'], package_dict['name']), harvest_object, 'Import')
                 return False
 
             #"Spatial Administrative Area",
             #"Use Constraints",
-            for e in package_dict['extras']:
+            for e in package_dict.get('extras', ''):
                 if e['key'] == 'date_released':
                     package_dict['date_released'] = normalize_date(e['value'])
                 if e['key'] == 'date_created':
@@ -650,6 +664,20 @@ class CKANHarvester(HarvesterBase):
                     package_dict['geographic_coverage-other'] = e['value']
                 if e['key'] == 'Purpose of Collection':
                     package_dict['lineage'] = e['value']
+
+            if 'date_released' not in package_dict:
+                package_dict['date_released'] = normalize_date(package_dict['metadata_created'])
+            if 'date_updated' not in package_dict:
+                package_dict['date_updated'] = normalize_date(package_dict['metadata_modified'])
+
+            if 'contact_point_name' in package_dict:
+                package_dict['contact-name'] = package_dict['contact_point_name']
+            if 'contact_point_email' in package_dict:
+                package_dict['contact-email'] = package_dict['contact_point_email']
+            if 'contact_point_phone' in package_dict:
+                package_dict['contact-phone'] = package_dict['contact_point_phone']
+            if 'geographic_coverage' in package_dict:
+                package_dict['geographic_coverage-other'] = package_dict['geographic_coverage']
 
             log.debug(package_dict)
 
