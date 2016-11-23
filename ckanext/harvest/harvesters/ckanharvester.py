@@ -634,6 +634,12 @@ class CKANHarvester(HarvesterBase):
             #"Spatial Administrative Area",
             #"Use Constraints",
             for e in package_dict['extras']:
+                if e['key'] == 'Date Released':
+                    package_dict['date_released'] = normalize_date(e['value'])
+                if e['key'] == 'Date Created':
+                    package_dict['date_created'] = normalize_date(e['value'])
+                if e['key'] == 'Date Modified':
+                    package_dict['date_modified'] = normalize_date(e['value'])
                 if e['key'] == 'date_released':
                     package_dict['date_released'] = normalize_date(e['value'])
                 if e['key'] == 'date_created':
