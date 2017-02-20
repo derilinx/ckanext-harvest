@@ -21,6 +21,9 @@ log = logging.getLogger(__name__)
 
 from base import HarvesterBase
 
+# we use this for parsing ISO dates
+import arrow
+
 org_blacklist = [
     '89a1c72e-fba7-4935-9575-956325cc03f6',
     'nui-maynooth-airo',
@@ -247,8 +250,8 @@ class CKANHarvester(HarvesterBase):
                 filter(HarvestObject.harvest_source_id==harvest_job.source.id)
 
         ###
-        # ok so, HarvestObject.guid is the dublinked package_id,
-        # and HarvestObject.package_id is the DGI package_id.
+        # ok so, HarvestObject.guid is the remote package_id,
+        # and HarvestObject.package_id is the local package_id.
         ###
         guid_to_package_id = {}
 
@@ -256,6 +259,10 @@ class CKANHarvester(HarvesterBase):
             guid_to_package_id[guid] = package_id
 
         guids_in_db = set(guid_to_package_id.keys())
+
+        log.error("Number of datasets in db: %s" % len(guids_in_db))
+
+        log.error(guids_in_db)
 
         # Create harvest objects for each dataset
         try:
@@ -270,7 +277,10 @@ class CKANHarvester(HarvesterBase):
                     continue
                 package_ids.add(pkg_dict['id'])
 
+            log.error(package_ids)
+
             to_delete = guids_in_db - package_ids
+	    log.error("Number of datasets to delete: %s" % len(to_delete))
 
             for guid in to_delete:
                 log.debug("Creating HarvestObject to delete %s %s", guid, guid_to_package_id[guid])
@@ -525,6 +535,7 @@ class CKANHarvester(HarvesterBase):
 
                                 for key in ['packages', 'created', 'users', 'groups', 'tags', 'extras', 'display_name', 'type']:
                                     org.pop(key, None)
+
                                 org['contact-name']='-'
                                 org['contact-email']='-'
                                 org['contact-phone']='-'
@@ -684,6 +695,10 @@ class CKANHarvester(HarvesterBase):
                 package_dict['contact-phone'] = package_dict['contact_point_phone']
             if 'geographic_coverage' in package_dict:
                 package_dict['geographic_coverage-other'] = package_dict['geographic_coverage']
+
+            # stupid ckan doesn't understand ISO dates
+            if '-' in package_dict['date_released']:
+                package_dict['date_released'] = arrow.get(package_dict['date_released'], ['YYYY-MM-DD HH:mm:ss', 'YYYY-MM-DD HH:mm', 'YYYY-MM-DD', 'YYYY-MM']).format('DD/MM/YYYY HH:mm')
 
             log.debug(package_dict)
 
