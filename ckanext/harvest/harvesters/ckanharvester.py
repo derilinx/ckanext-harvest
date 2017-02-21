@@ -25,9 +25,12 @@ from base import HarvesterBase
 import arrow
 
 org_blacklist = [
-    '89a1c72e-fba7-4935-9575-956325cc03f6',
+    '89a1c72e-fba7-4935-9575-956325cc03f6',  # nui maynooth airo
     'nui-maynooth-airo',
     'national-transport-authority'
+]
+dataset_blacklist = [
+    'weather-stations'
 ]
 dataset_whitelist = [
     'real-time-passenger-information-rtpi-for-dublin-bus-bus-eireann-luas-and-irish-rail'
@@ -548,7 +551,7 @@ class CKANHarvester(HarvesterBase):
                 if validated_org not in org_blacklist:
                     package_dict['owner_org'] = validated_org or local_org
                 else:
-		    self._save_object_error('Org in blaclist %s %s' % (package_dict['owner_org'], package_dict['name']), harvest_object, 'Import')
+		    self._save_object_error('Org in blacklist %s %s' % (package_dict['owner_org'], package_dict['name']), harvest_object, 'Import')
                     return False
                     
 
@@ -654,6 +657,10 @@ class CKANHarvester(HarvesterBase):
             if (package_dict['owner_org'] in org_blacklist) and (package_dict['name'] not in dataset_whitelist):
                 log.error('Org %s for dataset %s in blacklist!' % (package_dict['owner_org'], package_dict['name']))
                 self._save_object_error('Org %s for dataset %s in blacklist!' % (package_dict['owner_org'], package_dict['name']), harvest_object, 'Import')
+                return False
+
+            if (package_dict['name'] in dataset_blacklist):
+                self._save_object_error('dataset %s in blacklist!' % (package_dict['name']), harvest_object, 'Import')
                 return False
 
             #"Spatial Administrative Area",
