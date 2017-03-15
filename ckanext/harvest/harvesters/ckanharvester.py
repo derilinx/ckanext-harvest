@@ -691,6 +691,20 @@ class CKANHarvester(HarvesterBase):
                 package_dict['contact-name'] = package_dict['contact_point_name']
             if 'contact_point_email' in package_dict:
                 package_dict['contact-email'] = package_dict['contact_point_email']
+
+            # for dublinked specifically
+            if 'author' in package_dict:
+                package_dict['contact-name'] = package_dict['author']
+            if 'author_email' in package_dict:
+                package_dict['contact-email'] = package_dict['author_email']
+            if 'maintainer' in package_dict:
+                package_dict['contact-name'] = package_dict['maintainer']
+            if 'maintainer_email' in package_dict:
+                package_dict['contact-email'] = package_dict['maintainer_email']
+
+            if srcname != 'corkcity' and ('contact-email' not in package_dict or package_dict['contact-email'] == 'Not supplied'):
+                package_dict['contact-email'] = 'info@dublinked.ie'
+
             if 'contact_point_phone' in package_dict:
                 package_dict['contact-phone'] = package_dict['contact_point_phone']
             if 'geographic_coverage' in package_dict:
