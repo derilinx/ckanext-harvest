@@ -716,6 +716,8 @@ class CKANHarvester(HarvesterBase):
                 package_dict['contact-phone'] = package_dict['contact_point_phone']
             if 'geographic_coverage' in package_dict:
                 package_dict['geographic_coverage-other'] = package_dict['geographic_coverage']
+                #And remove geographic_coverage
+                package_dict.pop('geographic_coverage', None)
 
             # stupid ckan doesn't understand ISO dates
             if '-' in package_dict['date_released']:
