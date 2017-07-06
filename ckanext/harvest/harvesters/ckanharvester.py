@@ -668,25 +668,25 @@ class CKANHarvester(HarvesterBase):
             for e in package_dict.get('extras', ''):
                 if e['key'] == 'Date Released':
                     package_dict['date_released'] = normalize_date(e['value'])
-                if e['key'] == 'Date Created':
+                elif e['key'] == 'Date Created':
                     package_dict['date_created'] = normalize_date(e['value'])
-                if e['key'] == 'Date Modified':
+                elif e['key'] == 'Date Modified':
                     package_dict['date_modified'] = normalize_date(e['value'])
-                if e['key'] == 'date_released':
+                elif e['key'] == 'date_released':
                     package_dict['date_released'] = normalize_date(e['value'])
-                if e['key'] == 'date_created':
+                elif e['key'] == 'date_created':
                     package_dict['date_created'] = normalize_date(e['value'])
-                if e['key'] == 'date_modified':
+                elif e['key'] == 'date_modified':
                     package_dict['date_modified'] = normalize_date(e['value'])
-                if e['key'] == 'update_frequency':
+                elif e['key'] == 'update_frequency':
                     package_dict['update_frequency'] = e['value']
-                if e['key'] == 'Date Range':
+                elif e['key'] == 'Date Range':
                     package_dict['temporal_coverage-other'] = e['value']
-                if e['key'] == 'Spatial Projection':
+                elif e['key'] == 'Spatial Projection':
                     package_dict['spatial-reference-system'] = e['value']
-                if e['key'] == 'Geographical Bounding Box':
+                elif e['key'] == 'Geographical Bounding Box':
                     package_dict['geographic_coverage-other'] = e['value']
-                if e['key'] == 'Purpose of Collection':
+                elif e['key'] == 'Purpose of Collection':
                     package_dict['lineage'] = e['value']
 
             if 'date_released' not in package_dict:
@@ -698,26 +698,31 @@ class CKANHarvester(HarvesterBase):
                 package_dict['contact-name'] = package_dict['contact_point_name']
             if 'contact_point_email' in package_dict:
                 package_dict['contact-email'] = package_dict['contact_point_email']
+            if 'contact_point_phone' in package_dict:
+                package_dict['contact-phone'] = package_dict['contact_point_phone']
 
             # for dublinked specifically
-            if 'author' in package_dict:
-                package_dict['contact-name'] = package_dict['author']
-            if 'author_email' in package_dict:
-                package_dict['contact-email'] = package_dict['author_email']
-            if 'maintainer' in package_dict:
-                package_dict['contact-name'] = package_dict['maintainer']
-            if 'maintainer_email' in package_dict:
-                package_dict['contact-email'] = package_dict['maintainer_email']
+            if srcname == 'dublinked':
+                if 'author' in package_dict:
+                    package_dict['contact-name'] = package_dict['author']
+                if 'author_email' in package_dict:
+                    package_dict['contact-email'] = package_dict['author_email']
+                if 'maintainer' in package_dict:
+                    package_dict['contact-name'] = package_dict['maintainer']
+                if 'maintainer_email' in package_dict:
+                    package_dict['contact-email'] = package_dict['maintainer_email']
 
             if srcname != 'corkcity' and ('contact-email' not in package_dict or package_dict['contact-email'] == 'Not supplied'):
                 package_dict['contact-email'] = 'info@dublinked.ie'
 
-            if 'contact_point_phone' in package_dict:
-                package_dict['contact-phone'] = package_dict['contact_point_phone']
             if 'geographic_coverage' in package_dict:
                 package_dict['geographic_coverage-other'] = package_dict['geographic_coverage']
-                #And remove geographic_coverage
-                package_dict.pop('geographic_coverage', None)
+                #This was an attempt to 'clear' geographic_coverage when I thought removal is impossible, but in any case it seems to get autofilled by the update action?
+                #e_c = 0
+                #for e in package_dict.get('extras', ''):
+                #    if e['key'] == 'geographic_coverage':
+                #        package_dict['extras'][e_c]['value'] = None
+                #    e_c += 1
 
             # stupid ckan doesn't understand ISO dates
             if '-' in package_dict['date_released']:
