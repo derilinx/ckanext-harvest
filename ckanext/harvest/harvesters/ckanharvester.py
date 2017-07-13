@@ -666,6 +666,11 @@ class CKANHarvester(HarvesterBase):
                 package_dict['theme-primary'] = 'Towns'
 
             package_dict.pop('category', None)
+            
+            if 'frequency' in package_dict:
+                package_dict['update_frequency'] = package_dict['frequency']
+
+            package_dict.pop('frequency', None)
 
             if not package_dict.get('language'):
                 package_dict['language'] = 'eng' # they don't use this, so hardcode
