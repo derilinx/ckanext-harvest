@@ -36,6 +36,8 @@ dataset_whitelist = [
     'real-time-passenger-information-rtpi-for-dublin-bus-bus-eireann-luas-and-irish-rail'
 ]
 
+hsebaseurl = 'http://172.104.140.57'
+
 class CKANHarvester(HarvesterBase):
     '''
     A Harvester for CKAN instances
@@ -474,6 +476,9 @@ class CKANHarvester(HarvesterBase):
                 validated_groups = []
 
                 for group_name in package_dict['groups']:
+                    #Some CKANs return full group dictionaries
+                    if isinstance(group_name, dict):
+                        group_name = group_name.get("id", "")
                     try:
                         data_dict = {'id': group_name}
                         group = get_action('group_show')(context, data_dict)
@@ -598,7 +603,10 @@ class CKANHarvester(HarvesterBase):
                 # remote ones
                 if (resource.get('url_type') == 'datastore' and resource.get('url')[0] == '/'):
                     # these are relative links
-                    resource['url'] = 'http://data.corkcity.ie' + resource.get('url')
+                    if (srcname == 'corkcity'):
+                        resource['url'] = 'http://data.corkcity.ie' + resource.get('url')
+                    elif (srcname == 'hse'):
+                        resource['url'] = hsebaseurl + resource.get('url')
 
                 resource.pop('url_type', None)
 
@@ -622,6 +630,8 @@ class CKANHarvester(HarvesterBase):
             if (package_dict['license_id'] == 'CC-BY-4.0'):
                 package_dict['license_id'] = 'cc-by'
 
+            name_health = "Health"
+
             theme_map = {
                 "Transport and Infrastructure": "Transport",
                 "Planning and Land Use": "Housing",
@@ -630,26 +640,32 @@ class CKANHarvester(HarvesterBase):
                 "Recreation and Amenities": "Towns",
                 "Population and Communities": "Society",
                 "Arts Culture and Heritage": "Arts",
-                "Public Health and Safety": "Health",
+                "Public Health and Safety": name_health,
                 "Economy and Innovation": "Economy",
             }
-            if (package_dict['category'] in theme_map):
-                package_dict['theme-primary'] = theme_map[package_dict['category']]
-            elif (package_dict['category'] in theme_map.values()):
-                package_dict['theme-primary'] = package_dict['category']
-            else:
-                package_dict['theme-primary'] = 'Towns'
-
-            package_dict.pop('category', None)
 
             srcname = harvest_object.job.source.title
             if (srcname == 'corkcity'):
                 package_dict['collection-name'] = 'corkcity-ckan'
                 package_dict['url'] = "https://data.corkcity.ie/dataset/%s" % package_dict['name']
                 package_dict['title'] = package_dict['title']# + " - Cork"
-            else:
+            elif (srcname == 'dublinked'):
                 package_dict['collection-name'] = 'dublinked-ckan'
                 package_dict['url'] = "https://data.dublinked.ie/dataset/%s" % package_dict['name']
+            elif (srcname == 'hse'):
+                package_dict['collection-name'] = 'hse-ckan'
+                package_dict['url'] = hsebaseurl + "/dataset/%s" % package_dict['name']
+                #Set theme directly
+                package_dict['theme-primary'] = name_health
+
+            if ('category' in package_dict and package_dict['category'] in theme_map):
+                package_dict['theme-primary'] = theme_map[package_dict['category']]
+            elif ('category' in package_dict and package_dict['category'] in theme_map.values()):
+                package_dict['theme-primary'] = package_dict['category']
+            elif ('theme-primary' not in package_dict):
+                package_dict['theme-primary'] = 'Towns'
+
+            package_dict.pop('category', None)
 
             if not package_dict.get('language'):
                 package_dict['language'] = 'eng' # they don't use this, so hardcode
@@ -696,10 +712,16 @@ class CKANHarvester(HarvesterBase):
 
             if 'contact_point_name' in package_dict:
                 package_dict['contact-name'] = package_dict['contact_point_name']
+            elif 'contact_name' in package_dict:
+                package_dict['contact-name'] = package_dict['contact_name']
             if 'contact_point_email' in package_dict:
                 package_dict['contact-email'] = package_dict['contact_point_email']
+            elif 'contact_email' in package_dict:
+                package_dict['contact-email'] = package_dict['contact_email']
             if 'contact_point_phone' in package_dict:
                 package_dict['contact-phone'] = package_dict['contact_point_phone']
+            elif 'contact_phone' in package_dict:
+                package_dict['contact-phone'] = package_dict['contact_phone']
 
             # for dublinked specifically
             if srcname == 'dublinked':
@@ -712,7 +734,7 @@ class CKANHarvester(HarvesterBase):
                 if 'maintainer_email' in package_dict:
                     package_dict['contact-email'] = package_dict['maintainer_email']
 
-            if srcname != 'corkcity' and ('contact-email' not in package_dict or package_dict['contact-email'] == 'Not supplied'):
+            if srcname == 'dublinked' and ('contact-email' not in package_dict or package_dict['contact-email'] == 'Not supplied'):
                 package_dict['contact-email'] = 'info@dublinked.ie'
 
             if 'geographic_coverage' in package_dict:
@@ -723,6 +745,8 @@ class CKANHarvester(HarvesterBase):
                 #    if e['key'] == 'geographic_coverage':
                 #        package_dict['extras'][e_c]['value'] = None
                 #    e_c += 1
+            elif 'spatial' in package_dict:
+                package_dict['geographic_coverage-other'] = package_dict['spatial']
 
             # stupid ckan doesn't understand ISO dates
             if '-' in package_dict['date_released']:
