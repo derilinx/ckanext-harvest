@@ -739,9 +739,12 @@ class CKANHarvester(HarvesterBase):
                 if 'maintainer_email' in package_dict:
                     package_dict['contact-email'] = package_dict['maintainer_email']
 
-            if srcname == 'dublinked' and ('contact-email' not in package_dict or package_dict['contact-email'] == 'Not supplied'):
-                package_dict['contact-email'] = 'info@dublinked.ie'
-
+            if 'contact-email' not in package_dict or package_dict['contact-email'] == 'Not supplied':
+                if srcname == 'dublinked':
+                    package_dict['contact-email'] = 'info@dublinked.ie'
+                elif srcname == 'hse':
+                    package_dict['contact-email'] = 'opendata@hse.ie'
+            
             if 'geographic_coverage' in package_dict:
                 package_dict['geographic_coverage-other'] = package_dict['geographic_coverage']
                 #This was an attempt to 'clear' geographic_coverage when I thought removal is impossible, but in any case it seems to get autofilled by the update action?
@@ -750,8 +753,8 @@ class CKANHarvester(HarvesterBase):
                 #    if e['key'] == 'geographic_coverage':
                 #        package_dict['extras'][e_c]['value'] = None
                 #    e_c += 1
-            elif 'spatial' in package_dict:
-                package_dict['geographic_coverage-other'] = package_dict['spatial']
+            elif 'spatial_other' in package_dict:
+                package_dict['geographic_coverage-other'] = package_dict['spatial_other']
 
             # stupid ckan doesn't understand ISO dates
             if '-' in package_dict['date_released']:
