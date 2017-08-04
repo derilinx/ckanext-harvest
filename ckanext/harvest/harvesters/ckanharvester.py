@@ -36,7 +36,7 @@ dataset_whitelist = [
     'real-time-passenger-information-rtpi-for-dublin-bus-bus-eireann-luas-and-irish-rail'
 ]
 
-hsebaseurl = 'http://172.104.140.57'
+hsebaseurl = 'http://data.ehealthireland.ie'
 
 class CKANHarvester(HarvesterBase):
     '''
