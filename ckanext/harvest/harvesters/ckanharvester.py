@@ -601,6 +601,7 @@ class CKANHarvester(HarvesterBase):
                 # Clear remote url_type for resources (eg datastore, upload) as
                 # we are only creating normal resources with links to the
                 # remote ones
+                resource['name'] = resource.get('name', '').replace(':', '-')
                 if (resource.get('url_type') == 'datastore' and resource.get('url')[0] == '/'):
                     # these are relative links
                     if (srcname == 'corkcity'):
@@ -663,8 +664,11 @@ class CKANHarvester(HarvesterBase):
             elif ('category' in package_dict and package_dict['category'] in theme_map.values()):
                 package_dict['theme-primary'] = package_dict['category']
             elif ('theme-primary' not in package_dict):
-                package_dict['theme-primary'] = 'Towns'
-
+                if srcname == 'hse':
+                    package_dict['theme-primary'] = name_health
+                else:
+                    package_dict['theme-primary'] = 'Towns'
+           
             package_dict.pop('category', None)
             
             if 'frequency' in package_dict:
