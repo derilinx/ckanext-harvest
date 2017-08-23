@@ -601,12 +601,13 @@ class CKANHarvester(HarvesterBase):
                 # Clear remote url_type for resources (eg datastore, upload) as
                 # we are only creating normal resources with links to the
                 # remote ones
-                resource['name'] = resource.get('name', '').replace(':', '-')
+                resource['name'] = resource.get('name', '').replace(':', ' ')
+                resource['name'] = resource['name'].replace(',',' ')
                 if (resource.get('url_type') == 'datastore' and resource.get('url')[0] == '/'):
                     # these are relative links
                     if (srcname == 'corkcity'):
                         resource['url'] = 'http://data.corkcity.ie' + resource.get('url')
-                    elif (srcname == 'hse'):
+                    elif (srcname == 'HSE'):
                         resource['url'] = hsebaseurl + resource.get('url')
 
                 resource.pop('url_type', None)
@@ -747,7 +748,7 @@ class CKANHarvester(HarvesterBase):
             if 'contact-email' not in package_dict or package_dict['contact-email'] == 'Not supplied':
                 if srcname == 'dublinked':
                     package_dict['contact-email'] = 'info@dublinked.ie'
-                elif srcname == 'hse':
+                elif srcname == 'HSE':
                     package_dict['contact-email'] = 'opendata@hse.ie'
             
             if 'geographic_coverage' in package_dict:
