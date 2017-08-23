@@ -631,7 +631,7 @@ class CKANHarvester(HarvesterBase):
             if (package_dict['license_id'] == 'CC-BY-4.0'):
                 package_dict['license_id'] = 'cc-by'
 
-            name_health = "Health"
+            name_health = 'Health'
 
             theme_map = {
                 "Transport and Infrastructure": "Transport",
@@ -646,6 +646,7 @@ class CKANHarvester(HarvesterBase):
             }
 
             srcname = harvest_object.job.source.title
+            print ("srcname =" + srcname)
             if (srcname == 'corkcity'):
                 package_dict['collection-name'] = 'corkcity-ckan'
                 package_dict['url'] = "https://data.corkcity.ie/dataset/%s" % package_dict['name']
@@ -653,7 +654,7 @@ class CKANHarvester(HarvesterBase):
             elif (srcname == 'dublinked'):
                 package_dict['collection-name'] = 'dublinked-ckan'
                 package_dict['url'] = "https://data.dublinked.ie/dataset/%s" % package_dict['name']
-            elif (srcname == 'hse'):
+            elif (srcname == 'HSE'):
                 package_dict['collection-name'] = 'hse-ckan'
                 package_dict['url'] = hsebaseurl + "/dataset/%s" % package_dict['name']
                 #Set theme directly
@@ -664,7 +665,7 @@ class CKANHarvester(HarvesterBase):
             elif ('category' in package_dict and package_dict['category'] in theme_map.values()):
                 package_dict['theme-primary'] = package_dict['category']
             elif ('theme-primary' not in package_dict):
-                if srcname == 'hse':
+                if srcname == 'HSE':
                     package_dict['theme-primary'] = name_health
                 else:
                     package_dict['theme-primary'] = 'Towns'
