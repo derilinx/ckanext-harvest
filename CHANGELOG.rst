@@ -10,6 +10,9 @@ and this project adheres to `Semantic Versioning <http://semver.org/>`_
 ***********
 Unreleased_
 ***********
+Fixed
+-----
+- Fix handling of `clean_tags` options for tag lists and dicts #304
 
 ***********
 1.4.2_ - 2023-01-12
