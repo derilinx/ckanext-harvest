@@ -684,6 +684,8 @@ def harvest_jobs_run(context, data_dict):
     # Resubmit pending objects missing from Redis
     resubmit_objects()
 
+    session.close()
+
     return []  # merely for backwards compatibility
 
 
