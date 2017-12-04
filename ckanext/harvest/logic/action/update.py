@@ -556,6 +556,8 @@ def harvest_jobs_run(context, data_dict):
     # resubmit old redis tasks
     resubmit_jobs()
 
+    session.close()
+
     return []  # merely for backwards compatibility
 
 
