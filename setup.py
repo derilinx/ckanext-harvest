@@ -19,8 +19,11 @@ setup(
     include_package_data=True,
     zip_safe=False,
     install_requires=[
-            # dependencies are specified in pip-requirements.txt
-            # instead of here
+        'ckantoolkit==0.0.3',
+        'pika>=1.1.0',
+        'redis<=3.0',
+        'requests>=2.11.1',
+        'six>=1.12.0',
     ],
     tests_require=[
         'nose',
