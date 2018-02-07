@@ -20,8 +20,8 @@ setup(
 	include_package_data=True,
 	zip_safe=False,
 	install_requires=[
-	        # dependencies are specified in pip-requirements.txt
-	        # instead of here
+	    'pika==0.9.8',
+	    'redis==2.10.1'
 	],
 	tests_require=[
 		'nose',
