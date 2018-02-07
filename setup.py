@@ -19,8 +19,10 @@ setup(
     include_package_data=True,
     zip_safe=False,
     install_requires=[
-            # dependencies are specified in requirements.txt
-            # instead of here
+        "ckantoolkit>=0.0.7",
+        "pika>=1.1.0,<1.3.0",
+        "redis",
+        "requests>=2.11.1"
     ],
     tests_require=[
         'nose',
