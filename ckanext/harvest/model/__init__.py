@@ -251,7 +251,8 @@ class HarvestObjectError(HarvestDomainObject):
         finally:
             log_message = '{0}, line {1}'.format(message, line) \
                           if line else message
-            log.debug(log_message)
+            log.debug('HarvestObjectError: %s' %log_message)
+
 
 
 class HarvestLog(HarvestDomainObject):
