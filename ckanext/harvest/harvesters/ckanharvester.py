@@ -207,8 +207,9 @@ class CKANHarvester(HarvesterBase):
             last_time = last_error_free_job.gather_started
 
             #### UNDONE REMOVE ME  --- this was added to look back quite a long way to catch
-            #### the ckie zero bikes dataset and grab a new version of it.
-            last_time = datetime.datetime(2015,3,1)
+            #### the coke zero bikes dataset and grab a new version of it.
+            if toolkit.config.get('ckanext.dgithree.harvester_ignore_metadata_modified', False):
+                last_time = datetime.datetime(2011,3,1)
             #### UNDONE end remove me
 
             # Note: SOLR works in UTC, and gather_started is also UTC, so
