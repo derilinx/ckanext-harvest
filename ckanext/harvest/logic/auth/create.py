@@ -6,40 +6,25 @@ def harvest_source_create(context, data_dict):
     '''
         Authorization check for harvest source creation
 
-        It forwards the checks to package_create, which will check for
-        organization membership, whether if sysadmin, etc according to the
-        instance configuration.
+        Sysadmins only     *dgi3
     '''
-    user = context.get('user')
-    try:
-        pt.check_access('package_create', context, data_dict)
+    if not user_is_sysadmin(context):
+        return {'success': False, 'msg': pt._('Only sysadmins can create harvest sources')}
+    else:
         return {'success': True}
-    except pt.NotAuthorized:
-        return {'success': False,
-                'msg': pt._('User {0} not authorized to create harvest sources').format(user)}
 
 
 def harvest_job_create(context, data_dict):
     '''
         Authorization check for harvest job creation
 
-        It forwards the checks to package_update, ie the user can only create
-        new jobs if she is allowed to edit the harvest source dataset.
+        Sysadmins only    *dgi3
     '''
-    model = context['model']
-    source_id = data_dict['source_id']
 
-    pkg = model.Package.get(source_id)
-    if not pkg:
-        raise pt.ObjectNotFound(pt._('Harvest source not found'))
-
-    context['package'] = pkg
-    try:
-        pt.check_access('package_update', context, data_dict)
+    if not user_is_sysadmin(context):
+        return {'success': False, 'msg': pt._('Only sysadmins can create harvest jobs')}
+    else:
         return {'success': True}
-    except pt.NotAuthorized:
-        return {'success': False,
-                'msg': pt._('User not authorized to create a job for source {0}').format(source_id)}
 
 
 def harvest_job_create_all(context, data_dict):
