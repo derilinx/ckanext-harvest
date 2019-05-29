@@ -46,8 +46,8 @@ class Harvest(MixinPlugin, p.SingletonPlugin, DefaultDatasetForm, DefaultTransla
     p.implements(p.IPackageController, inherit=True)
     p.implements(p.ITemplateHelpers)
     p.implements(p.IFacets, inherit=True)
-    if p.toolkit.check_ckan_version(min_version='2.5.0'):
-        p.implements(p.ITranslation, inherit=True)
+#    if p.toolkit.check_ckan_version(min_version='2.5.0'):
+#        p.implements(p.ITranslation, inherit=True)
 
     startup = False
 
