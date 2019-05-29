@@ -38,7 +38,6 @@ class Harvest(p.SingletonPlugin, DefaultDatasetForm, DefaultTranslation):
     p.implements(p.IPackageController, inherit=True)
     p.implements(p.ITemplateHelpers)
     p.implements(p.IFacets, inherit=True)
-    p.implements(p.ITranslation, inherit=True)
 
     startup = False
 
