@@ -205,6 +205,7 @@ class CKANHarvester(HarvesterBase):
 
             # Request only the datasets modified since
             last_time = last_error_free_job.gather_started
+
             # Note: SOLR works in UTC, and gather_started is also UTC, so
             # this should work as long as local and remote clocks are
             # relatively accurate. Going back a little earlier, just in case.

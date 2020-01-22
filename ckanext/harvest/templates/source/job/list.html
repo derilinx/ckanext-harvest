@@ -37,6 +37,7 @@
             </p>
           </div>
           {% if job.status == 'Finished' %}
+              {#
             <ul class="dataset-resources unstyled">
               {% if 'errored' in job.stats and job.stats['errored'] > 0 %}
                 <li>
@@ -58,6 +59,7 @@
                 </li>
               {% endfor %}
             </ul>
+            #}
           {% endif %}
         </li>
        {% endfor %}

@@ -15,9 +15,10 @@ Example:
 
 {% set stats = job.stats %}
 
+{#
 {% if job.status == 'Finished' %}
   <p>
-    <span class="label label-important">
+    <span class="label label-warning">
       {% if 'errored' in stats and stats['errored'] > 0 %}
         {{ stats['errored'] }}
       {% else %}
@@ -37,6 +38,7 @@ Example:
     {% endfor %}
   </p>
 {% endif %}
+#}
 
 <h3 class="hide-heading">{{ _('Details') }}</h3>
 <table class="table table-striped table-bordered table-condensed">
