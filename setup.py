@@ -21,7 +21,7 @@ setup(
 	zip_safe=False,
 	install_requires=[
 	    'pika==0.9.8',
-	    'redis==2.10.1'
+	    'redis<3.0'
 	],
 	tests_require=[
 		'nose',
