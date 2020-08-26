@@ -1,10 +1,13 @@
+# -*- coding: utf-8 -*-
+
 import hashlib
 import json
+import six
 
 import logging
 import datetime
 
-from pylons import config
+from ckantoolkit import config
 from sqlalchemy import and_, or_
 
 from ckan.lib.search.index import PackageSearchIndex
@@ -21,15 +24,21 @@ from ckan.plugins import toolkit
 
 from ckan.logic import NotFound, check_access
 
-from ckanext.harvest.plugin import DATASET_TYPE_NAME
-from ckanext.harvest.queue import get_gather_publisher, resubmit_jobs
+from ckanext.harvest.utils import (
+    DATASET_TYPE_NAME
+)
+from ckanext.harvest.queue import (
+    get_gather_publisher, resubmit_jobs, resubmit_objects)
 
-from ckanext.harvest.model import HarvestSource, HarvestJob, HarvestObject
+from ckanext.harvest.model import HarvestSource, HarvestJob, HarvestObject, HarvestGatherError, HarvestObjectError
 from ckanext.harvest.logic import HarvestJobExists
 from ckanext.harvest.logic.dictization import harvest_job_dictize
 
 from ckanext.harvest.logic.action.get import (
     harvest_source_show, harvest_job_list, _get_sources_for_user)
+
+import ckan.lib.mailer as mailer
+from itertools import islice
 
 log = logging.getLogger(__name__)
 
@@ -276,10 +285,13 @@ def harvest_source_job_history_clear(context, data_dict):
     model = context['model']
 
     sql = '''begin;
-    delete from harvest_object_error where harvest_object_id in (select id from harvest_object where harvest_source_id = '{harvest_source_id}');
-    delete from harvest_object_extra where harvest_object_id in (select id from harvest_object where harvest_source_id = '{harvest_source_id}');
+    delete from harvest_object_error where harvest_object_id
+     in (select id from harvest_object where harvest_source_id = '{harvest_source_id}');
+    delete from harvest_object_extra where harvest_object_id
+     in (select id from harvest_object where harvest_source_id = '{harvest_source_id}');
     delete from harvest_object where harvest_source_id = '{harvest_source_id}';
-    delete from harvest_gather_error where harvest_job_id in (select id from harvest_job where source_id = '{harvest_source_id}');
+    delete from harvest_gather_error where harvest_job_id
+     in (select id from harvest_job where source_id = '{harvest_source_id}');
     delete from harvest_job where source_id = '{harvest_source_id}';
     commit;
     '''.format(harvest_source_id=harvest_source_id)
@@ -323,7 +335,7 @@ def harvest_source_index_clear(context, data_dict):
             conn.delete_query(query)
             if solr_commit:
                 conn.commit()
-        except Exception, e:
+        except Exception as e:
             log.exception(e)
             raise SearchIndexError(e)
         finally:
@@ -332,7 +344,7 @@ def harvest_source_index_clear(context, data_dict):
         # conn is pysolr
         try:
             conn.delete(q=query, commit=solr_commit)
-        except Exception, e:
+        except Exception as e:
             log.exception(e)
             raise SearchIndexError(e)
 
@@ -364,7 +376,6 @@ def harvest_objects_import(context, data_dict):
     log.info('Harvest objects import: %r', data_dict)
     check_access('harvest_objects_import', context, data_dict)
 
-    model = context['model']
     session = context['session']
     source_id = data_dict.get('source_id')
     guid = data_dict.get('guid')
@@ -379,7 +390,7 @@ def harvest_objects_import(context, data_dict):
         last_objects_ids = \
             session.query(HarvestObject.id) \
                    .filter(HarvestObject.guid == guid) \
-                   .filter(HarvestObject.current == True)
+                   .filter(HarvestObject.current == True)  # noqa: E712
 
     elif source_id:
         source = HarvestSource.get(source_id)
@@ -395,7 +406,7 @@ def harvest_objects_import(context, data_dict):
             session.query(HarvestObject.id) \
                    .join(HarvestSource) \
                    .filter(HarvestObject.source == source) \
-                   .filter(HarvestObject.current == True)
+                   .filter(HarvestObject.current == True)  # noqa: E712
 
     elif harvest_object_id:
         last_objects_ids = \
@@ -405,15 +416,16 @@ def harvest_objects_import(context, data_dict):
         last_objects_ids = \
             session.query(HarvestObject.id) \
                    .join(Package) \
-                   .filter(HarvestObject.current == True) \
-                   .filter(Package.state == u'active') \
+                   .filter(
+                HarvestObject.current == True  # noqa: E712
+            ).filter(Package.state == u'active') \
                    .filter(or_(Package.id == package_id_or_name,
                                Package.name == package_id_or_name))
         join_datasets = False
     else:
         last_objects_ids = \
             session.query(HarvestObject.id) \
-                   .filter(HarvestObject.current == True)
+                   .filter(HarvestObject.current == True)  # noqa: E712
 
     if join_datasets:
         last_objects_ids = last_objects_ids.join(Package) \
@@ -425,7 +437,7 @@ def harvest_objects_import(context, data_dict):
 
     for obj_id in last_objects_ids:
         if segments and \
-                str(hashlib.md5(obj_id[0]).hexdigest())[0] not in segments:
+                str(hashlib.md5(six.ensure_binary(obj_id[0])).hexdigest())[0] not in segments:
             continue
 
         obj = session.query(HarvestObject).get(obj_id)
@@ -488,6 +500,10 @@ def harvest_jobs_run(context, data_dict):
     Runs scheduled jobs, checks if any jobs need marking as finished, and
     resubmits queue items if needed.
 
+    If ckanext.harvest.timeout is set:
+    Check if the duration of the job is longer than ckanext.harvest.timeout, 
+    then mark that job as finished as there is probably an underlying issue with the harvest process.
+
     This should be called every few minutes (e.g. by a cron), or else jobs
     will never show as finished.
 
@@ -502,6 +518,7 @@ def harvest_jobs_run(context, data_dict):
     '''
     log.info('Harvest job run: %r', data_dict)
     check_access('harvest_jobs_run', context, data_dict)
+    timeout = config.get('ckan.harvest.timeout')
 
     session = context['session']
 
@@ -518,6 +535,24 @@ def harvest_jobs_run(context, data_dict):
         context, {'source_id': source_id, 'status': u'Running'})
     if len(jobs):
         for job in jobs:
+            if timeout:
+                created = datetime.datetime.strptime(job['created'], '%Y-%m-%d %H:%M:%S.%f')
+                now = datetime.datetime.now()
+                if now - created > datetime.timedelta(minutes=int(timeout)):
+                    msg = 'Job timeout: %s is taking longer than %s minutes' % (job['id'], timeout)
+                    log.error(msg)
+
+                    job_obj = HarvestJob.get(job['id'])
+                    job_obj.status = u'Finished'
+                    job_obj.finished = now
+                    job_obj.save()
+
+                    err = HarvestGatherError(message=msg, job=job_obj)
+                    err.save()
+                    log.info('Marking job as finished due to error: %s %s',
+                            job_obj.source.url, job_obj.id)
+                    continue
+
             if job['gather_finished']:
                 num_objects_in_progress = \
                     session.query(HarvestObject.id) \
@@ -536,8 +571,9 @@ def harvest_jobs_run(context, data_dict):
                     # object
                     last_object = session.query(HarvestObject) \
                         .filter(HarvestObject.harvest_job_id == job['id']) \
-                        .filter(HarvestObject.import_finished != None) \
-                        .order_by(HarvestObject.import_finished.desc()) \
+                        .filter(
+                        HarvestObject.import_finished != None  # noqa: E711
+                    ).order_by(HarvestObject.import_finished.desc()) \
                         .first()
                     if last_object:
                         job_obj.finished = last_object.import_finished
@@ -549,16 +585,129 @@ def harvest_jobs_run(context, data_dict):
                     # status
                     get_action('harvest_source_reindex')(
                         context, {'id': job_obj.source.id})
+
+                    status = get_action('harvest_source_show_status')(context, {'id': job_obj.source.id})
+
+                    if toolkit.asbool(config.get('ckan.harvest.status_mail.errored'))\
+                            and (status['last_job']['stats']['errored']):
+                        send_error_mail(context, job_obj.source.id, status)
                 else:
                     log.debug('Ongoing job:%s source:%s',
                               job['id'], job['source_id'])
+    log.debug('No jobs to send to the gather queue')
 
-    # resubmit old redis tasks
+    # Resubmit old redis tasks
     resubmit_jobs()
 
+    # Resubmit pending objects missing from Redis
+    resubmit_objects()
+
+    # 58499597e, Force close the session.
     session.close()
 
     return []  # merely for backwards compatibility
+
+
+def send_error_mail(context, source_id, status):
+
+    last_job = status['last_job']
+    source = get_action('harvest_source_show')(context, {'id': source_id})
+
+    ckan_site_url = config.get('ckan.site_url')
+    job_url = toolkit.url_for('harvest_job_show', source=source['id'], id=last_job['id'])
+
+    msg = toolkit._('This is a failure-notification of the latest harvest job ({0}) set-up in {1}.')\
+        .format(job_url, ckan_site_url)
+    msg += '\n\n'
+
+    msg += toolkit._('Harvest Source: {0}').format(source['title']) + '\n'
+    if source.get('config'):
+        msg += toolkit._('Harvester-Configuration: {0}').format(source['config']) + '\n'
+    msg += '\n\n'
+
+    if source['organization']:
+        msg += toolkit._('Organization: {0}').format(source['organization']['name'])
+        msg += '\n\n'
+
+    msg += toolkit._('Harvest Job Id: {0}').format(last_job['id']) + '\n'
+    msg += toolkit._('Created: {0}').format(last_job['created']) + '\n'
+    msg += toolkit._('Finished: {0}').format(last_job['finished']) + '\n\n'
+
+    report = get_action('harvest_job_report')(context, {'id': status['last_job']['id']})
+
+    msg += toolkit._('Records in Error: {0}').format(str(last_job['stats'].get('errored', 0)))
+    msg += '\n'
+
+    obj_error = ''
+    job_error = ''
+
+    for harvest_object_error_key in islice(report.get('object_errors'), 0, 20):
+        harvest_object_error = report.get('object_errors')[harvest_object_error_key]['errors']
+        for error in harvest_object_error:
+            obj_error += error['message']
+
+    for harvest_gather_error in islice(report.get('gather_errors'), 0, 20):
+        job_error += harvest_gather_error['message'] + '\n'
+
+    if (obj_error != '' or job_error != ''):
+        msg += toolkit._('Error Summary')
+        msg += '\n'
+
+    if (obj_error != ''):
+        msg += toolkit._('Document Error')
+        msg += '\n' + obj_error + '\n\n'
+
+    if (job_error != ''):
+        msg += toolkit._('Job Errors')
+        msg += '\n' + job_error + '\n\n'
+
+    if obj_error or job_error:
+        msg += '\n--\n'
+        msg += toolkit._('You are receiving this email because you are currently set-up as Administrator for {0}.'
+                         ' Please do not reply to this email as it was sent from a non-monitored address.')\
+            .format(config.get('ckan.site_title'))
+
+        recipients = []
+
+        # gather sysadmins
+        model = context['model']
+        sysadmins = model.Session.query(model.User).filter(
+            model.User.sysadmin == True  # noqa: E712
+        ).all()
+        for sysadmin in sysadmins:
+            recipients.append({
+                'name': sysadmin.name,
+                'email': sysadmin.email
+            })
+
+        # gather organization-admins
+        if source.get('organization'):
+            members = get_action('member_list')(context, {
+                'id': source['organization']['id'],
+                'object_type': 'user',
+                'capacity': 'admin'
+            })
+            for member in members:
+                member_details = get_action('user_show')(context, {'id': member[0]})
+                if member_details['email']:
+                    recipients.append({
+                        'name': member_details['name'],
+                        'email': member_details['email']
+                    })
+
+        for recipient in recipients:
+            email = {'recipient_name': recipient['name'],
+                     'recipient_email': recipient['email'],
+                     'subject': config.get('ckan.site_title') + ' - Harvesting Job - Error Notification',
+                     'body': msg}
+
+            try:
+                mailer.mail_recipient(**email)
+            except mailer.MailerException:
+                log.error('Sending Harvest-Notification-Mail failed. Message: ' + msg)
+            except Exception as e:
+                log.error(e)
+                raise
 
 
 def harvest_send_job_to_gather_queue(context, data_dict):
@@ -695,6 +844,7 @@ def harvest_source_reindex(context, data_dict):
     '''Reindex a single harvest source'''
 
     harvest_source_id = logic.get_or_bust(data_dict, 'id')
+
     defer_commit = context.get('defer_commit', False)
 
     if 'extras_as_string'in context:
@@ -712,7 +862,7 @@ def harvest_source_reindex(context, data_dict):
         config = json.loads(package_dict.get('config', ''))
     except ValueError:
         config = {}
-    for key, value in package_dict.iteritems():
+    for key, value in package_dict.items():
         if key not in config:
             new_dict[key] = value
 

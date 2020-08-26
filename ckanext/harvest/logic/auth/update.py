@@ -15,6 +15,7 @@ def harvest_source_update(context, data_dict):
         return {'success': True}
 
 
+
 def harvest_sources_clear(context, data_dict):
     '''
         Authorization check for clearing history for all harvest sources
@@ -26,6 +27,7 @@ def harvest_sources_clear(context, data_dict):
     else:
         return {'success': True}
 
+
 def harvest_source_clear(context, data_dict):
     '''
         Authorization check for clearing a harvest source
@@ -33,6 +35,7 @@ def harvest_source_clear(context, data_dict):
         It forwards to harvest_source_update
     '''
     return harvest_source_update(context, data_dict)
+
 
 def harvest_objects_import(context, data_dict):
     '''
@@ -88,6 +91,7 @@ def harvest_sources_reindex(context, data_dict):
         return {'success': False, 'msg': pt._('Only sysadmins can reindex all harvest sources')}
     else:
         return {'success': True}
+
 
 def harvest_source_reindex(context, data_dict):
     '''
