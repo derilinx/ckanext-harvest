@@ -24,6 +24,7 @@ setup(
         'redis<=3.0',
         'requests>=2.11.1',
         'six>=1.12.0',
+        'pyopenssl'
     ],
     tests_require=[
         'nose',
