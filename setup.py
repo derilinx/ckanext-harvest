@@ -24,7 +24,9 @@ setup(
         'redis<=3.0',
         'requests>=2.11.1',
         'six>=1.12.0',
-        'pyopenssl'
+        'pyopenssl',
+        'factory-boy',  # required for paster --plugin=ckanext-harvest harvester run_test [harvester]
+        'mock', # required for paster --plugin=ckanext-harvest harvester run_test [harvester]
     ],
     tests_require=[
         'nose',
