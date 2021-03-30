@@ -201,7 +201,7 @@ class CKANHarvester(HarvesterBase):
         log.debug('Last error-free job: %r', last_error_free_job)
         if (last_error_free_job and
                 not self.config.get('force_all', False)):
-            get_all_packages = False
+            get_all_packages = True
 
             # Request only the datasets modified since
             last_time = last_error_free_job.gather_started
