@@ -21,9 +21,9 @@ setup(
     install_requires=[
         'ckantoolkit==0.0.3',
         'pika>=1.1.0',
-        'pyOpenSSL==18.0.0',
+        'pyOpenSSL',
         'redis>=3.3.0',
-        'requests==2.20.0',
+        'requests',
         'six>=1.12.0',
     ],
     tests_require=[
