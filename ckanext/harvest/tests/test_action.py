@@ -735,6 +735,7 @@ class TestActions():
         assert job['gather_started'] is None
         assert 'stats' in job.keys()
 
+    @pytest.mark.xfail(reason="Derilinx change sysadmin only")
     def test_harvest_job_create_as_admin(self):
         # as if an admin user presses 'refresh'
         user = ckan_factories.User()
