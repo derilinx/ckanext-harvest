@@ -137,7 +137,7 @@ class CKANHarvester(HarvesterBase):
                         # save the dict to the config object, as we'll need it
                         # in the import_stage of every dataset
                         config_obj['default_group_dicts'].append(group)
-                    except NotFound as e:
+                    except NotFound:
                         raise ValueError('Default group not found')
                 config = json.dumps(config_obj)
 
@@ -425,7 +425,7 @@ class CKANHarvester(HarvesterBase):
                             else:
                                 raise NotFound
 
-                        except NotFound as e:
+                        except NotFound:
                             if 'name' in group_:
                                 data_dict = {'id': group_['name']}
                                 group = get_action('group_show')(base_context.copy(), data_dict)
@@ -434,7 +434,7 @@ class CKANHarvester(HarvesterBase):
                         # Found local group
                         validated_groups.append({'id': group['id'], 'name': group['name']})
 
-                    except NotFound as e:
+                    except NotFound:
                         log.info('Group %s is not available', group_)
                         if remote_groups == 'create':
                             try:
@@ -474,7 +474,7 @@ class CKANHarvester(HarvesterBase):
                         data_dict = {'id': remote_org}
                         org = get_action('organization_show')(base_context.copy(), data_dict)
                         validated_org = org['id']
-                    except NotFound as e:
+                    except NotFound:
                         log.info('Organization %s is not available', remote_org)
                         if remote_orgs == 'create':
                             try:

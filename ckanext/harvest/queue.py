@@ -26,7 +26,7 @@ USERID = 'guest'
 PASSWORD = 'guest'
 HOSTNAME = 'localhost'
 VIRTUAL_HOST = '/'
-MQ_TYPE = 'amqp'
+MQ_TYPE = 'redis'
 REDIS_PORT = 6379
 REDIS_DB = 0
 
@@ -132,10 +132,16 @@ def resubmit_jobs():
     # fetch queue
     harvest_object_pending = redis.keys(get_fetch_routing_key() + ':*')
     for key in harvest_object_pending:
+        redis_value = redis.get(key)
+        if redis_value is None:
+            log.info('Fetch Queue: Redis cannot get value for key {}'.format(key))
+            continue
         date_of_key = datetime.datetime.strptime(
-            redis.get(key), "%Y-%m-%d %H:%M:%S.%f")
+            redis_value, "%Y-%m-%d %H:%M:%S.%f")
+        log.debug('[Fetch queue]: Check key {} with value {}'.format(key, date_of_key))
         # 3 minutes for fetch and import max
         if (datetime.datetime.now() - date_of_key).seconds > 180:
+            log.debug('[Fetch queue]: Re-new harvest object with KEY {} in redis'.format(key))
             redis.rpush(get_fetch_routing_key(),
                         json.dumps({'harvest_object_id': key.split(':')[-1]})
                         )
@@ -144,10 +150,16 @@ def resubmit_jobs():
     # gather queue
     harvest_jobs_pending = redis.keys(get_gather_routing_key() + ':*')
     for key in harvest_jobs_pending:
+        redis_value = redis.get(key)
+        if redis_value is None:
+            log.info('Gather Queue: Redis cannot get value for key {}'.format(key))
+            continue
         date_of_key = datetime.datetime.strptime(
-            redis.get(key), "%Y-%m-%d %H:%M:%S.%f")
+            redis_value, "%Y-%m-%d %H:%M:%S.%f")
+        log.debug('[Gather queue]: Check key {} with value {}'.format(key, date_of_key))
         # 3 hours for a gather
         if (datetime.datetime.now() - date_of_key).seconds > 7200:
+            log.debug('[Gather queue]: Re-new harvest job with KEY {} in redis'.format(key))
             redis.rpush(get_gather_routing_key(),
                         json.dumps({'harvest_job_id': key.split(':')[-1]})
                         )
@@ -167,10 +179,18 @@ def resubmit_objects():
         .filter_by(state='WAITING') \
         .all()
 
+    objects_in_queue = []
+    fetch_routing_key = get_fetch_routing_key()
+
+    objects_in_queue = [json.loads(o)['harvest_object_id']
+                        for o in redis.lrange(fetch_routing_key, 0, -1)]
+
     for object_id, in waiting_objects:
-        if not redis.get(object_id):
-            log.debug('Re-sent object {} to the fetch queue'.format(object_id[0]))
-            publisher.send({'harvest_object_id': object_id[0]})
+        if object_id not in objects_in_queue:
+            log.debug('Re-sent object {} to the fetch queue'.format(object_id))
+            publisher.send({'harvest_object_id': object_id})
+
+    publisher.close()
 
 
 class Publisher(object):
@@ -263,14 +283,7 @@ class RedisConsumer(object):
     def persistance_key(self, message):
         # If you change this, make sure to update the script in `queue_purge`
         message = json.loads(message)
-
-        # something has been dumping {[message_key]: null} entries
-        # into the harvest queue. At this point, it's a lot cause to
-        # try to figure out what was originally referenced. If we just
-        # pass back routing_key:None, then we'll get a harvest object we
-        # can't find, and a local error will result but all the queues
-        # won't be blocked.
-        return self.routing_key + ':' + str(message[self.message_key])
+        return self.routing_key + ':' + message[self.message_key]
 
     def basic_ack(self, message):
         self.redis.delete(self.persistance_key(message))
@@ -466,7 +479,7 @@ def fetch_callback(channel, method, header, body):
         channel.basic_ack(method.delivery_tag)
         return False
 
-    # check if job has been set to finished 
+    # check if job has been set to finished
     job = HarvestJob.get(obj.harvest_job_id)
     if job.status == 'Finished':
         obj.state = "ERROR"

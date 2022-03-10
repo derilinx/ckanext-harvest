@@ -2,8 +2,8 @@
 ckanext-harvest - Remote harvesting extension
 =============================================
 
-.. image:: https://travis-ci.org/ckan/ckanext-harvest.svg?branch=master
-    :target: https://travis-ci.org/ckan/ckanext-harvest
+.. image:: https://github.com/ckan/ckanext-harvest/workflows/Tests/badge.svg?branch=master
+    :target: https://github.com/ckan/ckanext-harvest/actions
 
 This extension provides a common harvesting framework for ckan extensions
 and adds a CLI and a WUI to CKAN to manage harvesting sources and jobs.
@@ -92,7 +92,13 @@ config option (or ``default``) will be used to namespace the relevant things:
 Configuration
 =============
 
-Run the following command to create the necessary tables in the database (ensuring the pyenv is activated)::
+Run the following command to create the necessary tables in the database (ensuring the pyenv is activated):
+
+ON CKAN >= 2.9::
+
+    (pyenv) $ ckan --config=/etc/ckan/default/ckan.ini harvester initdb
+
+ON CKAN <= 2.8::
 
     (pyenv) $ paster --plugin=ckanext-harvest harvester initdb --config=/etc/ckan/default/production.ini
 
@@ -187,9 +193,13 @@ If you don't specify this setting, the default will be number-sequence.
 Send error mails when harvesting fails (optional)
 =================================================
 
-If you want to send an email when a Harvest Job fails, you can set the following configuration option in the ini file:
+If you want to send an email when a **Harvest Job fails**, you can set the following configuration option in the ini file:
 
     ckan.harvest.status_mail.errored = True
+
+If you want to send an email when **completed Harvest Jobs finish** (whether or not it failed), you can set the following configuration option in the ini file:
+
+    ckan.harvest.status_mail.all = True
 
 That way, all CKAN Users who are declared as Sysadmins will receive the Error emails at their configured email address. If the Harvest-Source of the failing Harvest-Job belongs to an organization, the error-mail will also be sent to the organization-members who have the admin-role if their E-Mail is configured.
 
@@ -207,6 +217,8 @@ The timeout value is in minutes, so 1440 represents 24 hours.
 Any jobs which are timed out will create an error message for the user to see.
 
 If you don't specify this setting, the default will be False and there will be no timeout on harvest jobs.
+This timeout value is compared to the completion time of the last object in the job.
+
 
 Command line interface
 ======================
@@ -230,13 +242,15 @@ The following operations can be run from the command line as described underneat
         - clears all datasets, jobs and objects related to a harvest source,
           but keeps the source itself
 
-      harvester clearsource_history [{source-id}]
+      harvester clearsource-history [{source-id}] [-k]
         - If no source id is given the history for all harvest sources (maximum is 1000)
           will be cleared.
           Clears all jobs and objects related to a harvest source, but keeps the source
           itself. The datasets imported from the harvest source will **NOT** be deleted!!!
           If a source id is given, it only clears the history of the harvest source with
           the given source id.
+
+          To keep the currently active jobs use the -k option.
 
       harvester sources [all]
         - lists harvest sources
@@ -248,7 +262,7 @@ The following operations can be run from the command line as described underneat
       harvester jobs
         - lists harvest jobs
 
-      harvester job_abort {source-id/name}
+      harvester job-abort {source-id/name}
         - marks a job as "Aborted" so that the source can be restarted afresh.
           It ensures that the job's harvest objects status are also marked
           finished. You should ensure that neither the job nor its objects are
@@ -259,29 +273,29 @@ The following operations can be run from the command line as described underneat
           the gather queue. Also checks running jobs - if finished it
           changes their status to Finished.
 
-      harvester run_test {source-id/name}
+      harvester run-test {source-id/name}
         - runs a harvest - for testing only.
           This does all the stages of the harvest (creates job, gather, fetch,
           import) without involving the web UI or the queue backends. This is
           useful for testing a harvester without having to fire up
           gather/fetch_consumer processes, as is done in production.
           
-      harvester run_test {source-id/name} force-import=guid1,guid2...
+      harvester run-test {source-id/name} force-import=guid1,guid2...
         - In order to force an import of particular datasets, useful to 
           target a dataset for dev purposes or when forcing imports on other environments.
 
-      harvester gather_consumer
+      harvester gather-consumer
         - starts the consumer for the gathering queue
 
-      harvester fetch_consumer
+      harvester fetch-consumer
         - starts the consumer for the fetching queue
 
-      harvester purge_queues
+      harvester purge-queues
         - removes all jobs from fetch and gather queue
           WARNING: if using Redis, this command purges all data in the current
           Redis database
 
-      harvester clean_harvest_log
+      harvester clean-harvest-log
         - Clean-up mechanism for the harvest log table.
           You can configure the time frame through the configuration
           parameter 'ckan.harvest.log_timeframe'. The default time frame is 30 days
@@ -309,9 +323,19 @@ The following operations can be run from the command line as described underneat
       harvester reindex
         - reindexes the harvest source datasets
 
-The commands should be run with the pyenv activated and refer to your CKAN configuration file::
+The commands should be run with the pyenv activated and refer to your CKAN configuration file:
+
+ON CKAN >= 2.9::
+
+    (pyenv) $ ckan --config=/etc/ckan/default/ckan.ini harvester --help
+
+    (pyenv) $ ckan --config=/etc/ckan/default/ckan.ini harvester sources
+
+ON CKAN <= 2.8::
 
       (pyenv) $ paster --plugin=ckanext-harvest harvester sources --config=/etc/ckan/default/production.ini
+      
+**Note that on CKAN >= 2.9 all commands with an underscore in their name changed.** They now use a hyphen instead of an underscore (e.g. ``gather_consumer`` changed to ``gather-consumer``).
 
 Authorization
 =============
@@ -657,18 +681,18 @@ Running the harvest jobs
 
 There are two ways to run a harvest:
 
-1. ``harvester run_test`` for the command-line, suitable for testing
+1. ``harvester run-test`` for the command-line, suitable for testing
 2. ``harvester run`` used by the Web UI and scheduled runs
 
-harvester run_test
+harvester run-test
 ------------------
 
-You can run a harvester simply using the ``run_test`` command. This is handy
+You can run a harvester simply using the ``run-test`` command. This is handy
 for running a harvest with one command in the console and see all the output
 in-line. It runs the gather, fetch and import stages all in the same process.
 You must ensure that you have pip installed ``dev-requirements.txt`` 
 in ``/home/ckan/ckan/lib/default/src/ckanext-harvest`` before using the
-``run_test`` command.
+``run-test`` command.
   
 This is useful for developing a harvester because you can insert break-points
 in your harvester, and rerun a harvest without having to restart the
@@ -691,16 +715,34 @@ normal method in production systems and scales well.
 In this case, the harvesting extension uses two different queues: one that
 handles the gathering and another one that handles the fetching and importing.
 To start the consumers run the following command (make sure you have your
-python environment activated)::
+python environment activated):
+
+ON CKAN >= 2.9::
+
+      (pyenv) $ ckan --config=/etc/ckan/default/ckan.ini harvester gather_consumer
+
+ON CKAN <= 2.8::
 
       (pyenv) $ paster --plugin=ckanext-harvest harvester gather_consumer --config=/etc/ckan/default/production.ini
 
-On another terminal, run the following command::
+On another terminal, run the following command:
+
+ON CKAN >= 2.9::
+
+      (pyenv) $ ckan --config=/etc/ckan/default/ckan.ini harvester fetch_consumer
+
+ON CKAN <= 2.8::
 
       (pyenv) $ paster --plugin=ckanext-harvest harvester fetch_consumer --config=/etc/ckan/default/production.ini
 
 Finally, on a third console, run the following command to start any
-pending harvesting jobs::
+pending harvesting jobs:
+
+ON CKAN >= 2.9::
+
+      (pyenv) $ ckan --config=/etc/ckan/default/ckan.ini harvester run
+
+ON CKAN <= 2.8::
 
       (pyenv) $ paster --plugin=ckanext-harvest harvester run --config=/etc/ckan/default/production.ini
 
@@ -717,7 +759,13 @@ finished, and therefore you cannot run another job. This is due to particular
 harvester not handling errors correctly e.g. during development. In this
 circumstance, ensure that the gather & fetch consumers are running and have
 nothing more to consume, and then run this abort command with the name or id of
-the harvest source::
+the harvest source:
+
+ON CKAN >= 2.9::
+
+      (pyenv) $ ckan --config=/etc/ckan/default/ckan.ini harvester job_abort {source-id/name}
+
+ON CKAN <= 2.8::
 
       (pyenv) $ paster --plugin=ckanext-harvest harvester job_abort {source-id/name} --config=/etc/ckan/default/production.ini
 
@@ -760,7 +808,44 @@ following steps with the one you are using.
    stored in ``/etc/supervisor/conf.d``.
 
    Create a file named ``/etc/supervisor/conf.d/ckan_harvesting.conf``, and
-   copy the following contents::
+   copy the following contents:
+
+   ON CKAN >= 2.9::
+
+        ; ===============================
+        ; ckan harvester
+        ; ===============================
+
+        [program:ckan_gather_consumer]
+
+        command=/usr/lib/ckan/default/bin/ckan --config=/etc/ckan/default/ckan.ini harvester gather_consumer
+
+        ; user that owns virtual environment.
+        user=ckan
+
+        numprocs=1
+        stdout_logfile=/var/log/ckan/std/gather_consumer.log
+        stderr_logfile=/var/log/ckan/std/gather_consumer.log
+        autostart=true
+        autorestart=true
+        startsecs=10
+
+        [program:ckan_fetch_consumer]
+
+        command=/usr/lib/ckan/default/bin/ckan --config=/etc/ckan/default/ckan.ini harvester fetch_consumer
+
+        ; user that owns virtual environment.
+        user=ckan
+
+        numprocs=1
+        stdout_logfile=/var/log/ckan/std/fetch_consumer.log
+        stderr_logfile=/var/log/ckan/std/fetch_consumer.log
+        autostart=true
+        autorestart=true
+        startsecs=10
+
+
+   ON CKAN <= 2.8::
 
 
         ; ===============================
@@ -855,7 +940,14 @@ following steps with the one you are using.
    processes to be run with (`ckan` in our example).
 
    Paste this line into your crontab, again replacing the paths to paster and
-   the ini file with yours::
+   the ini file with yours:
+
+   ON CKAN >= 2.9::
+
+    # m  h  dom mon dow   command
+    */15 *  *   *   *     /usr/lib/ckan/default/bin/ckan -c /etc/ckan/default/ckan.ini harvester run
+
+   ON CKAN <= 2.8::
 
     # m  h  dom mon dow   command
     */15 *  *   *   *     /usr/lib/ckan/default/bin/paster --plugin=ckanext-harvest harvester run --config=/etc/ckan/default/production.ini
@@ -868,14 +960,50 @@ following steps with the one you are using.
 
     sudo crontab -e -u ckan
 
-   Paste this line into your crontab, again replacing the paths to paster and
-   the ini file with yours::
+   Paste this line into your crontab, again replacing the paths to paster/ckan and
+   the ini file with yours:
+
+   ON CKAN >= 2.9::
+
+    # m  h  dom mon dow   command
+      0  5  *   *   *     /usr/lib/ckan/default/bin/ckan -c /etc/ckan/default/ckan.ini harvester clean_harvest_log
+
+   ON CKAN <= 2.8::
 
     # m  h  dom mon dow   command
       0  5  *   *   *     /usr/lib/ckan/default/bin/paster --plugin=ckanext-harvest harvester clean_harvest_log --config=/etc/ckan/default/production.ini
 
    This particular example will perform clean-up each day at 05 AM.
    You can tweak the value according to your needs.
+
+Extensible actions
+==================
+
+Recipients on harvest jobs notifications
+----------------------------------------
+
+:code:`harvest_get_notifications_recipients`: you can *chain* this action from another extension to change 
+the recipients for harvest jobs notifications.
+
+.. code-block:: python
+
+  @toolkit.chained_action
+  def harvest_get_notifications_recipients(up_func, context, data_dict):
+      """ Harvester plugin notify by default about harvest jobs only to 
+              admin users of the related organization.
+              Also allow to add custom recipients with this function.
+              
+          Return a list of dicts with name and email like
+              {'name': 'John', 'email': 'john@source.com'} """
+
+      recipients = up_func(context, data_dict)
+      new_recipients = []
+
+      # you custom logic to add new_recipients here
+      # new_recipients.append({'name': 'Harvester Admin', 'email': 'admin@harvester-team.com'})
+      # recipients += new_recipients
+      return recipients
+
 
 Tests
 =====
@@ -896,6 +1024,7 @@ Here are some common errors and solutions:
 
 * ``(OperationalError) near "SET": syntax error``
   You are testing with SQLite as the database, but the CKAN Harvester needs PostgreSQL. Specify test-core.ini instead of test.ini.
+
 
 Harvest API
 =====

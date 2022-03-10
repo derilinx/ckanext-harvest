@@ -206,7 +206,7 @@ def clear_harvest_source(source_id_or_name):
     tk.get_action("harvest_source_clear")(context, {"id": source["id"]})
 
 
-def clear_harvest_source_history(source_id):
+def clear_harvest_source_history(source_id, keep_current):
 
     context = {
         "model": model,
@@ -215,17 +215,35 @@ def clear_harvest_source_history(source_id):
     }
     if source_id is not None:
         tk.get_action("harvest_source_job_history_clear")(context, {
-            "id": source_id
+            "id": source_id,
+            "keep_current": keep_current
         })
         return "Cleared job history of harvest source: {0}".format(source_id)
     else:
         # Purge queues, because we clean all harvest jobs and
         # objects in the database.
-        purge_queues()
+        if not keep_current:
+            purge_queues()
         cleared_sources_dicts = tk.get_action(
-            "harvest_sources_job_history_clear")(context, {})
+            "harvest_sources_job_history_clear")(context, {
+                "keep_current": keep_current
+            })
         return "Cleared job history for all harvest sources: {0} source(s)".format(
             len(cleared_sources_dicts))
+
+
+def abort_failed_jobs(job_life_span, include, exclude):
+    context = {
+        "model": model,
+        "user": _admin_user()["name"],
+        "session": model.Session,
+    }
+    result = tk.get_action("harvest_abort_failed_jobs")(context, {
+        "life_span": job_life_span,
+        "include": include,
+        "exclude": exclude
+    })
+    print(result)
 
 
 def purge_queues():
@@ -377,10 +395,7 @@ def run_test_harvester(source_id_or_name, force_import):
             print('\nSource "{0}" apparently has a "Running" job:\n{1}'.format(
                 source.get("name") or source["id"], running_jobs))
 
-            if six.PY2:
-                resp = raw_input("Abort it? (y/n)")
-            else:
-                resp = input("Abort it? (y/n)")
+            resp = six.moves.input("Abort it? (y/n)")
             if not resp.lower().startswith("y"):
                 sys.exit(1)
             job_dict = tk.get_action("harvest_job_abort")(
