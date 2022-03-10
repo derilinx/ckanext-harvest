@@ -1,5 +1,5 @@
 from ckan.plugins import toolkit as pt
-
+from ckanext.harvest.logic.auth import user_is_sysadmin
 
 def harvest_source_delete(context, data_dict):
     '''
