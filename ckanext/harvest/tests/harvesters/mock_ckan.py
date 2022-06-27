@@ -294,7 +294,8 @@ DATASETS = [
                     "position": 0,
                     "revision_id": "4fca759e-d340-4e64-b75e-22ee1d42c2b4",
                     "id": "f156019d-ea88-46a6-8fa3-3d12582e2161",
-                    "size": 299107
+                    "size": 299107,
+                    "dummy-field": "abcd"
                 }
             ],
         "num_resources": 1,
