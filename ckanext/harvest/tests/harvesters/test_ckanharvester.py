@@ -323,6 +323,29 @@ class TestCkanHarvester(object):
                 config=json.dumps(config))
         assert 'default_extras must be a dictionary' in str(harvest_context.value)
 
+    def test_resource_field_blacklist(self):
+        config = {
+            'resource_field_blacklist': ['dummy-field']
+        }
+        results_by_guid = run_harvest(
+            url='http://localhost:%s' % mock_ckan.PORT,
+            harvester=CKANHarvester(),
+            config=json.dumps(config))
+        assert results_by_guid['1c65c66a-fdec-4138-9c64-0f9bf087bcbb']['errors'] == []
+        print(results_by_guid['1c65c66a-fdec-4138-9c64-0f9bf087bcbb']['dataset']['resources'][0])
+        assert 'dummy-field' not in results_by_guid['1c65c66a-fdec-4138-9c64-0f9bf087bcbb']['dataset']['resources'][0]
+
+    def test_resource_field_blacklist_invalid(self):
+        config = {
+            'resource_field_blacklist': {}
+        }
+        with pytest.raises(toolkit.ValidationError) as harvest_context:
+            run_harvest(
+                url='http://localhost:%s' % mock_ckan.PORT,
+                harvester=CKANHarvester(),
+                config=json.dumps(config))
+        assert 'resource_field_blacklist must be a list' in str(harvest_context.value)
+
     @patch('ckanext.harvest.harvesters.ckanharvester.CKANHarvester.config')
     @patch('ckanext.harvest.harvesters.ckanharvester.requests.get', side_effect=RequestException('Test.value'))
     def test_get_content_handles_request_exception(

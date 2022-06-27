@@ -140,6 +140,10 @@ class CKANHarvester(HarvesterBase):
                 if not isinstance(config_obj['default_extras'], dict):
                     raise ValueError('default_extras must be a dictionary')
 
+            if 'resource_field_blacklist' in config_obj:
+                if not isinstance(config_obj['resource_field_blacklist'], list):
+                    raise ValueError('resource_field_blacklist must be a list')
+
             if 'organizations_filter_include' in config_obj \
                     and 'organizations_filter_exclude' in config_obj:
                 raise ValueError('Harvest configuration cannot contain both '
@@ -540,6 +544,9 @@ class CKANHarvester(HarvesterBase):
                 # and saving it will cause an IntegrityError with the foreign
                 # key.
                 resource.pop('revision_id', None)
+
+                for field in self.config.get('resource_field_blacklist', []):
+                    resource.pop(field, None)
 
             package_dict = self.modify_package_dict(package_dict, harvest_object)
 
