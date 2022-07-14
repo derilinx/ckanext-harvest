@@ -11,6 +11,7 @@ from sqlalchemy.orm import contains_eager
 from ckantoolkit import config
 
 from ckan import plugins as p
+from ckan.plugins import toolkit
 from ckan import model
 from ckan.model import Session, Package, PACKAGE_NAME_MAX_LENGTH
 
@@ -27,6 +28,7 @@ from ckanext.harvest.logic.schema import unicode_safe
 
 
 log = logging.getLogger(__name__)
+HAS_I18N = 'fluent' in toolkit.aslist(toolkit.config.get('ckan.plugins'))
 
 
 class HarvesterBase(SingletonPlugin):
@@ -284,6 +286,13 @@ class HarvesterBase(SingletonPlugin):
             if self.config and self.config.get('clean_tags', False):
                 tags = package_dict.get('tags', [])
                 package_dict['tags'] = self._clean_tags(tags)
+
+            if HAS_I18N:
+                lang = package_dict.get('language', 'en')
+                if 'notes' in package_dict and lang not in package_dict.get('notes_translated', {}) and ('notes_translated-%s' % lang) not in package_dict:
+                    package_dict['notes_translated-%s' % lang] = package_dict['notes']
+                if 'title' in package_dict and lang not in package_dict.get('title_translated', {}) and ('title_translated-%s' % lang) not in package_dict:
+                    package_dict['title_translated-%s' % lang] = package_dict['title']
 
             # Check if package exists
             try:
