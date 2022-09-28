@@ -20,7 +20,8 @@ setup(
     zip_safe=False,
     install_requires=[
         'ckantoolkit==0.0.3',
-        'pika>=1.1.0',
+        "pika>=1.3.0; python_version>='3.0'",
+        "pika==1.2.1; python_version<'3.0'",
         'pyOpenSSL',
         'redis>=3.3.0',
         'requests',
