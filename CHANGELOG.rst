@@ -19,6 +19,41 @@ Fixed
 - Fix handling of `clean_tags` options for tag lists and dicts #304
 
 ***********
+1.4.1_ - 2022-09-20
+***********
+
+Changed
+-------
+
+- Use requirements.txt instead of pip-requirements.txt (still working via symlink) 8ed1eca
+
+Fixed
+-----
+
+- Bump pyopenssl requirement to avoid requirements error on install 98edcd3
+- Fixes unicode error in Python 2 #502
+- Fixes in email notification sendngi  #499, #505
+- Fix pagination for Dataset list on source page #504
+
+***********
+1.4.0_ - 2022-04-20
+***********
+
+Changed
+-------
+
+- Add ckan.harvest.not_overwrite_fields #472
+- Support for Bootstrap 5 templates #490
+- Support for CKAN 2.10 #492 #496
+
+Fixed
+-----
+
+- Fix JSONDecode error #489
+- Check if email exists before sending notification #498
+
+
+***********
 1.3.4_ - 2022-01-24
 ***********
 
