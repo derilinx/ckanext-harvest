@@ -456,14 +456,13 @@ def harvest_get_notifications_recipients(context, data_dict):
         # Get access to email address by running action as admin user
         context['user'] = p.toolkit.get_action('get_site_user')({'ignore_auth': True})['name']
         for member in members:
-            member_details = p.toolkit.get_action(
-                'user_show')(context, {'id': member[0]})
+            # Don't use user_show because that hides the email
+            member = model.User.get(member[0])
 
-            email_address = member_details.get('email', None)
-            if email_address and email_address.strip():
+            if member.email is not None:
                 recipients.append({
-                    'name': member_details['name'],
-                    'email': email_address
+                    'name': member.name,
+                    'email': member.email
                 })
 
     return recipients
