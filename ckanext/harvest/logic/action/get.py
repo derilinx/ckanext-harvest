@@ -435,10 +435,11 @@ def harvest_get_notifications_recipients(context, data_dict):
     ).all()
 
     for sysadmin in sysadmins:
-        recipients.append({
-            'name': sysadmin.name,
-            'email': sysadmin.email
-        })
+        if sysadmin.email is not None:
+            recipients.append({
+                'name': sysadmin.name,
+                'email': sysadmin.email
+            })
 
     # gather organization-admins
     if source.get('organization'):
@@ -449,13 +450,13 @@ def harvest_get_notifications_recipients(context, data_dict):
         })
 
         for member in members:
-            member_details = p.toolkit.get_action(
-                'user_show')(context, {'id': member[0]})
+            # Don't use user_show because that hides the email
+            member = model.User.get(member[0])
 
-            if member_details['email']:
+            if member.email is not None:
                 recipients.append({
-                    'name': member_details['name'],
-                    'email': member_details['email']
+                    'name': member.name,
+                    'email': member.email
                 })
 
     return recipients
