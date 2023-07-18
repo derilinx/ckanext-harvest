@@ -21,7 +21,7 @@ setup(
     install_requires=[
         "ckantoolkit>=0.0.7",
         "pika>=1.1.0,<1.3.0",
-        "redis<3.0",
+        "redis",
         "requests>=2.11.1"
     ],
     tests_require=[
