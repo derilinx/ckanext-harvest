@@ -25,6 +25,7 @@ from ckanext.harvest.model import (HarvestObject, HarvestGatherError,
 from ckan.plugins.core import SingletonPlugin, implements
 from ckanext.harvest.interfaces import IHarvester
 from ckanext.harvest.logic.schema import unicode_safe
+from ckanext.harvest.helpers import get_taxonomy_vocab_id
 
 if p.toolkit.check_ckan_version(min_version='2.3'):
     from ckan.lib.munge import munge_tag
@@ -48,7 +49,7 @@ else:
 
 log = logging.getLogger(__name__)
 HAS_I18N = 'fluent' in toolkit.aslist(toolkit.config.get('ckan.plugins'))
-
+TAXONOMY_VOCABULARY_ID = get_taxonomy_vocab_id(log)
 
 class HarvesterBase(SingletonPlugin):
     '''
@@ -371,6 +372,15 @@ class HarvesterBase(SingletonPlugin):
                     package_dict['name'] = self._gen_new_name(package_dict['title'])
 
                 log.info('Package with GUID %s does not exist, let\'s create it' % harvest_object.guid)
+                if 'taxonomy' in package_dict.keys():
+                    package_dict['taxonomy'] = package_dict['taxonomy'][0].replace('"', '').replace('{','').replace('}','').split(',')
+                log.info('The taxonomy key value: %r ' % package_dict.get('taxonomy', None))
+                if not TAXONOMY_VOCABULARY_ID:
+                    log.error("Missing taxonomy vocabulary ID")
+                else:
+                    for tag in package_dict['tags']:
+                        if 'vocabulary_id' in tag.keys():
+                            tag['vocabulary_id'] = TAXONOMY_VOCABULARY_ID
                 harvest_object.current = True
                 harvest_object.package_id = package_dict['id']
                 # Defer constraints and flush so the dataset can be indexed with

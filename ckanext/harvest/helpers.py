@@ -3,6 +3,8 @@ from ckan import logic
 from ckan import model
 import ckan.lib.helpers as h
 import ckan.plugins as p
+import os
+import json
 
 from ckanext.harvest.model import UPDATE_FREQUENCIES
 from ckanext.harvest.utils import (
@@ -148,3 +150,17 @@ def bootstrap_version():
             'bs2' if
             p.toolkit.config.get('ckan.base_public_folder') == 'public-bs2'
             else 'bs3')
+
+def get_taxonomy_vocab_id(log):
+    context = {'model': model}
+    try:
+        data = {'id': 'taxonomy'}
+        vocabulary_dict = p.toolkit.get_action('vocabulary_show')(context, data)
+        log.debug("Taxonomy Vocabulary already exists")
+        return vocabulary_dict.get('id', None)
+    except p.toolkit.ObjectNotFound:
+        log.debug("Creating vocab 'taxonomy'")
+        vocabulary_data =  json.load(os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), u'vocabulary.json'))
+        vocab = p.toolkit.get_action('vocabulary_create')(context, vocabulary_data)
+        return vocab.get('id', None)
