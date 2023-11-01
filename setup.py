@@ -1,6 +1,6 @@
 from setuptools import setup, find_packages
 
-version = '1.4.1'
+version = '1.5.6'
 
 setup(
     name='ckanext-harvest',
@@ -19,13 +19,10 @@ setup(
     include_package_data=True,
     zip_safe=False,
     install_requires=[
-        'ckantoolkit==0.0.7',
-        "pika>=1.3.0; python_version>='3.0'",
-        "pika==1.2.1; python_version<'3.0'",
-        'pyOpenSSL>=21.0.0',
-        'redis>=3.3.0',
-        'requests',
-        'six>=1.12.0',
+        'ckantoolkit>=0.0.7',
+        'pika>=1.3.0',
+        'redis',
+        'requests>=2.11.1',
     ],
     tests_require=[
         'nose',
