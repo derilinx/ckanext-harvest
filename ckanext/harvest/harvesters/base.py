@@ -324,7 +324,8 @@ class HarvesterBase(SingletonPlugin):
                 # Check modified date
                 if 'metadata_modified' not in package_dict or \
                    package_dict['metadata_modified'] > existing_package_dict.get('metadata_modified') \
-                   or package_dict['owner_org'] != existing_package_dict.get('owner_org'):
+                   or package_dict['owner_org'] != existing_package_dict.get('owner_org') \
+                   or self.config.get("force_harvest_update_all", False):
                     log.info('Package with GUID %s exists and needs to be updated' % harvest_object.guid)
                     # Update package
                     context.update({'id': package_dict['id']})
