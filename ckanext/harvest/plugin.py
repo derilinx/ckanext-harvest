@@ -27,7 +27,7 @@ log = getLogger(__name__)
 assert not log.disabled
 
 
-class Harvest(p.SingletonPlugin, DefaultDatasetForm, DefaultTranslation):
+class Harvest(p.SingletonPlugin, DefaultDatasetForm):
     p.implements(p.IClick)
     p.implements(p.IBlueprint)
     p.implements(p.IConfigurable)
@@ -38,7 +38,6 @@ class Harvest(p.SingletonPlugin, DefaultDatasetForm, DefaultTranslation):
     p.implements(p.IPackageController, inherit=True)
     p.implements(p.ITemplateHelpers)
     p.implements(p.IFacets, inherit=True)
-    p.implements(p.ITranslation, inherit=True)
 
     startup = False
 
@@ -51,14 +50,6 @@ class Harvest(p.SingletonPlugin, DefaultDatasetForm, DefaultTranslation):
 
     def get_blueprint(self):
         return views.get_blueprints()
-
-    # ITranslation
-    def i18n_directory(self):
-        u'''Change the directory of the .mo translation files'''
-        return os.path.join(
-            os.path.dirname(ckanext.harvest.__file__),
-            'i18n'
-        )
 
     # IPackageController
 
