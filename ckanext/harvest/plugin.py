@@ -11,8 +11,6 @@ from ckan import model
 import ckan.plugins as p
 from ckan.lib.plugins import DefaultDatasetForm
 
-from ckan.lib.plugins import DefaultTranslation
-
 import ckanext.harvest
 from ckanext.harvest import cli, views
 from ckanext.harvest.model import setup as model_setup
@@ -27,7 +25,7 @@ log = getLogger(__name__)
 assert not log.disabled
 
 
-class Harvest(p.SingletonPlugin, DefaultDatasetForm, DefaultTranslation):
+class Harvest(p.SingletonPlugin, DefaultDatasetForm):
     p.implements(p.IClick)
     p.implements(p.IBlueprint)
     p.implements(p.IConfigurable)
@@ -50,14 +48,6 @@ class Harvest(p.SingletonPlugin, DefaultDatasetForm, DefaultTranslation):
 
     def get_blueprint(self):
         return views.get_blueprints()
-
-    # ITranslation
-    def i18n_directory(self):
-        u'''Change the directory of the .mo translation files'''
-        return os.path.join(
-            os.path.dirname(ckanext.harvest.__file__),
-            'i18n'
-        )
 
     # IPackageController
 
