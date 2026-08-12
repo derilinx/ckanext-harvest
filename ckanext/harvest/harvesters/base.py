@@ -288,11 +288,19 @@ class HarvesterBase(SingletonPlugin):
 
             # DLX custom starts: fluent support for title and notes
             if HAS_I18N:
-                lang = package_dict.get('language', 'en')
-                if 'notes' in package_dict and lang not in package_dict.get('notes_translated', {}) and ('notes_translated-%s' % lang) not in package_dict:
-                    package_dict['notes_translated-%s' % lang] = package_dict['notes']
-                if 'title' in package_dict and lang not in package_dict.get('title_translated', {}) and ('title_translated-%s' % lang) not in package_dict:
-                    package_dict['title_translated-%s' % lang] = package_dict['title']
+                lang = package_dict.get("language", "en")
+                if (
+                    "notes" in package_dict
+                    and lang not in package_dict.get("notes_translated", {})
+                    and ("notes_translated-%s" % lang) not in package_dict
+                ):
+                    package_dict["notes_translated-%s" % lang] = package_dict["notes"]
+                if (
+                    "title" in package_dict
+                    and lang not in package_dict.get("title_translated", {})
+                    and ("title_translated-%s" % lang) not in package_dict
+                ):
+                    package_dict["title_translated-%s" % lang] = package_dict["title"]
             # DLX custom ends
 
             # Check if package exists
@@ -308,7 +316,7 @@ class HarvesterBase(SingletonPlugin):
                 if 'metadata_modified' not in package_dict or \
                    package_dict['metadata_modified'] > existing_package_dict.get('metadata_modified') \
                    or package_dict['owner_org'] != existing_package_dict.get('owner_org'):
-                   # DLX custom ends
+                    # DLX custom ends
                     log.info('Package with GUID %s exists and needs to be updated' % harvest_object.guid)
                     # Update package
                     context.update({'id': package_dict['id']})
