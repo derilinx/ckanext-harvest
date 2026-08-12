@@ -346,7 +346,6 @@ class TestCkanHarvester(object):
                 config=json.dumps(config))
         assert 'resource_field_blacklist must be a list' in str(harvest_context.value)
 
-    @patch('ckanext.harvest.harvesters.ckanharvester.pyopenssl.inject_into_urllib3')
     @patch('ckanext.harvest.harvesters.ckanharvester.CKANHarvester.config')
     @patch('ckanext.harvest.harvesters.ckanharvester.requests.get', side_effect=RequestException('Test.value'))
     def test_get_content_handles_request_exception(
