@@ -57,8 +57,8 @@ SOURCE_DICT = {
 }
 
 
-@pytest.mark.usefixtures('with_plugins', 'clean_db', 'harvest_setup', 'clean_queues')
-@pytest.mark.ckan_config('ckan.plugins', 'harvest test_action_harvester')
+@pytest.mark.usefixtures('with_plugins', 'clean_db', 'clean_queues')
+@pytest.mark.ckan_config('ckan.plugins', 'harvest test_action_harvester test_harvester')
 class HarvestSourceActionBase():
 
     def _get_source_dict(self):
@@ -160,7 +160,7 @@ class HarvestSourceFixtureMixin(object):
         # delete status because it gets in the way of the status supplied to
         # helpers.call_action later on. It is only a generated value, not affecting
         # the update/patch anyway.
-        del source['status']
+        source.pop("status", None)
         return source
 
 
@@ -225,7 +225,7 @@ class TestHarvestSourceActionPatch(HarvestSourceFixtureMixin,
         assert source.type == source_dict['source_type']
 
 
-@pytest.mark.usefixtures('with_plugins', 'clean_db', 'harvest_setup', 'clean_queues')
+@pytest.mark.usefixtures('with_plugins', 'clean_db', 'clean_queues')
 @pytest.mark.ckan_config('ckan.plugins', 'harvest test_action_harvester')
 class TestActions():
     def test_harvest_source_clear(self):

@@ -2,7 +2,7 @@
 ckanext-harvest - Remote harvesting extension
 =============================================
 
-.. image:: https://github.com/ckan/ckanext-harvest/workflows/Tests/badge.svg?branch=master
+.. image:: https://github.com/ckan/ckanext-harvest/actions/workflows/test.yml/badge.svg
     :target: https://github.com/ckan/ckanext-harvest/actions
 
 This extension provides a common harvesting framework for ckan extensions
@@ -12,9 +12,8 @@ and adds a CLI and a WUI to CKAN to manage harvesting sources and jobs.
 Installation
 ============
 
-This extension requires CKAN v2.0 or later on both the CKAN it is installed
-into and the CKANs it harvests. However you are unlikely to encounter a CKAN
-running a version lower than 2.0.
+This extension requires CKAN 2.10+ to run. However, it can harvest other CKAN instances running
+version 2.0+.
 
 1. The harvest extension can use two different backends. You can choose whichever
    you prefer depending on your needs, but Redis has been found to be more stable
@@ -44,20 +43,25 @@ running a version lower than 2.0.
 
 3. Install the ckanext-harvest Python package into your virtual environment::
 
-     (pyenv) $ pip install -e git+https://github.com/ckan/ckanext-harvest.git#egg=ckanext-harvest
+     (pyenv) $ pip install ckanext-harvest
 
-4. Install the python modules required by the extension (adjusting the path according to where ckanext-harvest was installed in the previous step)::
+   If you are planning on using RabbitMQ / AMQP as backend, install the dependencies::
 
-     (pyenv) $ cd /usr/lib/ckan/default/src/ckanext-harvest/
-     (pyenv) $ pip install -r requirements.txt
+     (pyenv) $ pip install ckanext-harvest[amqp]
 
-5. Make sure the CKAN configuration ini file contains the harvest main plugin, as
+   If you want to install a ckanext-harvest version older than 1.6.3, use the old legacy version of the install::
+
+         pip install -e git+https://github.com/ckan/ckanext-harvest.git#egg=ckanext-harvest
+         pip install -r ckanext-harvest/requirements.txt
+
+
+4. Make sure the CKAN configuration ini file contains the harvest main plugin, as
    well as the harvester for CKAN instances if you need it (included with the extension)::
 
      ckan.plugins = harvest ckan_harvester
 
 6. If you haven't done it yet on the previous step, define the backend that you
-   are using with the ``ckan.harvest.mq.type`` option in the `[app:main]` section (it defaults to ``amqp``)::
+   are using with the ``ckan.harvest.mq.type`` option in the `[app:main]` section (it defaults to ``redis``)::
 
      ckan.harvest.mq.type = redis
 
@@ -94,7 +98,7 @@ Configuration
 
 Run the following command to create the necessary tables in the database (ensuring the pyenv is activated):
 
-    (pyenv) $ ckan --config=/etc/ckan/default/ckan.ini harvester initdb
+    (pyenv) $ ckan --config=/etc/ckan/default/ckan.ini db upgrade -p harvest
 
 Finally, restart CKAN to have the changes take effect::
 
@@ -103,6 +107,12 @@ Finally, restart CKAN to have the changes take effect::
 After installation, the harvest source listing should be available under /harvest, eg::
 
     http://localhost/harvest
+
+There is a "Harvest" tab in the sysadmin pages as well:
+
+![Harvest admin tab](https://github.com/ckan/ckanext-harvest/blob/master/docs/admin-tab.png?raw=true)
+
+Check the `config declaration <https://github.com/ckan/ckanext-harvest/blob/master/ckanext/harvest/config_declaration.yml>`_ file for a full list of all available configuration options.
 
 
 Database logger configuration(optional)
@@ -227,105 +237,36 @@ For example, in case you want to retain changes made by the users to the fields 
 Command line interface
 ======================
 
-The following operations can be run from the command line as described underneath::
+The ``ckan harvester`` command provides utilities to manage harvest operations from the command line.
+Please refer to the help message of each command for more details::
 
-      harvester initdb
-        - Creates the necessary tables in the database
 
-      harvester source {name} {url} {type} [{title}] [{active}] [{owner_org}] [{frequency}] [{config}]
-        - create new harvest source
+   Usage: ckan harvester [OPTIONS] COMMAND [ARGS]...
 
-      harvester source {source-id/name}
-        - shows a harvest source
+     Harvests remotely mastered metadata.
 
-      harvester rmsource {source-id/name}
-        - remove (deactivate) a harvester source, whilst leaving any related
-          datasets, jobs and objects
+   Options:
+     --help  Show this message and exit.
 
-      harvester clearsource {source-id/name}
-        - clears all datasets, jobs and objects related to a harvest source,
-          but keeps the source itself
+   Commands:
+     abort-failed-jobs  Abort all jobs which are in a "limbo state" where...
+     clean-harvest-log  Clean-up mechanism for the harvest log table.
+     dumphelp
+     fetch-consumer     Starts the consumer for the fetching queue.
+     gather-consumer    Starts the consumer for the gathering queue.
+     harvesters_info
+     import             Perform the import stage with the last fetched...
+     job                Create new harvest job and runs it (puts it on the...
+     job-abort          Marks a job as "Aborted" so that the source can be...
+     job-all            Create new harvest jobs for all active sources.
+     jobs               Lists harvest jobs.
+     purge-queues       Removes all jobs from fetch and gather queue.
+     reindex            Reindexes the harvest source datasets.
+     run                Starts any harvest jobs that have been created by...
+     run-test           Runs a harvest - for testing only.
+     source             Manage harvest sources
+     sources            Lists harvest sources.
 
-      harvester clearsource-history [{source-id}] [-k]
-        - If no source id is given the history for all harvest sources (maximum is 1000)
-          will be cleared.
-          Clears all jobs and objects related to a harvest source, but keeps the source
-          itself. The datasets imported from the harvest source will **NOT** be deleted!!!
-          If a source id is given, it only clears the history of the harvest source with
-          the given source id.
-
-          To keep the currently active jobs use the -k option.
-
-      harvester sources [all]
-        - lists harvest sources
-          If 'all' is defined, it also shows the Inactive sources
-
-      harvester job {source-id/name}
-        - create new harvest job
-
-      harvester jobs
-        - lists harvest jobs
-
-      harvester job-abort {source-id/name}
-        - marks a job as "Aborted" so that the source can be restarted afresh.
-          It ensures that the job's harvest objects status are also marked
-          finished. You should ensure that neither the job nor its objects are
-          currently in the gather/fetch queues.
-
-      harvester run
-        - starts any harvest jobs that have been created by putting them onto
-          the gather queue. Also checks running jobs - if finished it
-          changes their status to Finished.
-
-      harvester run-test {source-id/name}
-        - runs a harvest - for testing only.
-          This does all the stages of the harvest (creates job, gather, fetch,
-          import) without involving the web UI or the queue backends. This is
-          useful for testing a harvester without having to fire up
-          gather/fetch_consumer processes, as is done in production.
-
-      harvester run-test {source-id/name} force-import=guid1,guid2...
-        - In order to force an import of particular datasets, useful to
-          target a dataset for dev purposes or when forcing imports on other environments.
-
-      harvester gather-consumer
-        - starts the consumer for the gathering queue
-
-      harvester fetch-consumer
-        - starts the consumer for the fetching queue
-
-      harvester purge-queues
-        - removes all jobs from fetch and gather queue
-          WARNING: if using Redis, this command purges all data in the current
-          Redis database
-
-      harvester clean-harvest-log
-        - Clean-up mechanism for the harvest log table.
-          You can configure the time frame through the configuration
-          parameter 'ckan.harvest.log_timeframe'. The default time frame is 30 days
-
-      harvester [-j] [-o] [--segments={segments}] import [{source-id}]
-        - perform the import stage with the last fetched objects, for a certain
-          source or a single harvest object. Please note that no objects will
-          be fetched from the remote server. It will only affect the objects
-          already present in the database.
-
-          To import a particular harvest source, specify its id as an argument.
-          To import a particular harvest object use the -o option.
-          To import a particular package use the -p option.
-
-          You will need to specify the -j flag in cases where the datasets are
-          not yet created (e.g. first harvest, or all previous harvests have
-          failed)
-
-          The --segments flag allows to define a string containing hex digits that represent which of
-          the 16 harvest object segments to import. e.g. 15af will run segments 1,5,a,f
-
-      harvester job-all
-        - create new harvest jobs for all active sources.
-
-      harvester reindex
-        - reindexes the harvest source datasets
 
 The commands should be run with the pyenv activated and refer to your CKAN configuration file:
 
@@ -392,6 +333,9 @@ field. The currently supported configuration options are:
 
 *   api_key: If the remote CKAN instance has restricted access to the API, you
     can provide a CKAN API key, which will be sent in any request.
+
+*   user_agent: Set a custom user agent string on gathering and fetching,
+    to handle servers that whitelist or blacklist specific values.
 
 *   read_only: Create harvested packages in read-only mode. Only the user who
     performed the harvest (the one defined in the previous setting or the
@@ -974,7 +918,7 @@ To create a new release, follow the following steps:
 
 * Determine new release number based on the rules of `semantic versioning <http://semver.org>`_
 * Update the CHANGELOG, especially the link for the "Unreleased" section
-* Update the version number in `setup.py`
+* Update the version number in `pyproject.toml`
 * Create a new release on GitHub and add the CHANGELOG of this release as release notes
 
 
@@ -990,7 +934,7 @@ Contributing
 ============
 
 For contributing to ckanext-harvest or its documentation, follow the guidelines described in
-`CONTRIBUTING <https://github.com/ckan/ckanext-harvest/blob/master/CONTRIBUTING.rst>`_.
+`CONTRIBUTING <https://github.com/ckan/ckanext-harvest/blob/master/CONTRIBUTING.md>`_.
 
 
 License
