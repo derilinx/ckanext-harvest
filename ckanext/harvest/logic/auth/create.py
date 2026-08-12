@@ -1,7 +1,7 @@
 from ckan.plugins import toolkit as pt
 from ckanext.harvest.logic.auth import user_is_sysadmin
 
-
+# DLX custom start: sysadmin only auth
 def harvest_source_create(context, data_dict):
     '''
         Authorization check for harvest source creation
@@ -25,7 +25,7 @@ def harvest_job_create(context, data_dict):
         return {'success': False, 'msg': pt._('Only sysadmins can create harvest jobs')}
     else:
         return {'success': True}
-
+# DLX custom ends
 
 def harvest_job_create_all(context, data_dict):
     '''

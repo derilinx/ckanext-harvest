@@ -693,8 +693,9 @@ def harvest_jobs_run(context, data_dict):
     # Resubmit pending objects missing from Redis
     resubmit_objects()
 
-    # 58499597e, Force close the session.
+    # DLX custom start: Force close the session.
     session.close()
+    # DLX custom end
 
     return []  # merely for backwards compatibility
 

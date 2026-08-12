@@ -2,6 +2,7 @@ from ckan.plugins import toolkit as pt
 from ckanext.harvest.logic.auth import user_is_sysadmin
 
 
+# DLX custom start: sysadmin only auth
 def harvest_source_delete(context, data_dict):
     '''
         Authorization check for harvest source deletion
@@ -14,3 +15,4 @@ def harvest_source_delete(context, data_dict):
         return {'success': False, 'msg': pt._('Only sysadmins can delete harvest sources')}
     else:
         return {'success': True}
+# DLX custom ends

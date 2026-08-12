@@ -457,6 +457,7 @@ def harvest_get_notifications_recipients(context, data_dict):
         # Get access to email address by running action as admin user
         context['user'] = p.toolkit.get_action('get_site_user')({'ignore_auth': True})['name']
         for member in members:
+            # DLX custom start: use User model instead of user_show
             # Don't use user_show because that hides the email
             member = model.User.get(member[0])
 
@@ -465,5 +466,6 @@ def harvest_get_notifications_recipients(context, data_dict):
                     'name': member.name,
                     'email': member.email
                 })
+            # DLX custom end
 
     return recipients

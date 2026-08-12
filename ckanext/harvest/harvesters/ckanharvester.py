@@ -145,9 +145,11 @@ class CKANHarvester(HarvesterBase):
                 if not isinstance(config_obj['default_extras'], dict):
                     raise ValueError('default_extras must be a dictionary')
 
+            # DLX custom starts: resource fields disallow list
             if 'resource_field_blacklist' in config_obj:
                 if not isinstance(config_obj['resource_field_blacklist'], list):
                     raise ValueError('resource_field_blacklist must be a list')
+            # DLX custom ends
 
             if 'organizations_filter_include' in config_obj \
                     and 'organizations_filter_exclude' in config_obj:
@@ -220,9 +222,15 @@ class CKANHarvester(HarvesterBase):
         # modified since the last completely successful harvest.
         last_error_free_job = self.last_error_free_job(harvest_job)
         log.debug('Last error-free job: %r', last_error_free_job)
+
+
+        # DLX custom start: all datasets always requested
+        get_all_packages = True
+
         if (last_error_free_job and
-                not self.config.get('force_all', False)):
-            get_all_packages = True
+                not self.config.get('force_all', False) and
+                not get_all_packages):
+            get_all_packages =False
 
             # Request only the datasets modified since
             last_time = last_error_free_job.gather_started
@@ -252,6 +260,7 @@ class CKANHarvester(HarvesterBase):
                          'CKAN instance since the last harvest job %s',
                          last_time)
                 return []
+        # DLX custom end
 
         # Fall-back option - request all the datasets from the remote CKAN
         if get_all_packages:
@@ -550,8 +559,10 @@ class CKANHarvester(HarvesterBase):
                 # key.
                 resource.pop('revision_id', None)
 
+                # DLX custom starts: resource fields disallow list
                 for field in self.config.get('resource_field_blacklist', []):
                     resource.pop(field, None)
+                # DLX custom ends
 
             package_dict = self.modify_package_dict(package_dict, harvest_object)
 

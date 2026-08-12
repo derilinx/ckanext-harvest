@@ -2,6 +2,7 @@ from ckan.plugins import toolkit as pt
 from ckanext.harvest.logic.auth import user_is_sysadmin
 
 
+# DLX custom start: sysadmin only auth
 def harvest_source_update(context, data_dict):
     '''
         Authorization check for harvest source update
@@ -13,7 +14,7 @@ def harvest_source_update(context, data_dict):
         return {'success': False, 'msg': pt._('Only sysadmins can update harvest sources')}
     else:
         return {'success': True}
-
+# DLX custom ends
 
 def harvest_sources_clear(context, data_dict):
     '''

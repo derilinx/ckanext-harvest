@@ -10,7 +10,6 @@ from sqlalchemy.orm import contains_eager
 from ckantoolkit import config
 
 from ckan import plugins as p
-from ckan.plugins import toolkit
 from ckan import model
 from ckan.model import Session, Package, PACKAGE_NAME_MAX_LENGTH
 
@@ -27,7 +26,8 @@ from ckanext.harvest.logic.schema import unicode_safe
 
 
 log = logging.getLogger(__name__)
-HAS_I18N = 'fluent' in toolkit.aslist(toolkit.config.get('ckan.plugins'))
+# DLX custom: fluent support for title and notes
+HAS_I18N = 'fluent' in p.toolkit.aslist(p.toolkit.config.get('ckan.plugins'))
 
 
 class HarvesterBase(SingletonPlugin):
@@ -286,12 +286,14 @@ class HarvesterBase(SingletonPlugin):
                 tags = package_dict.get('tags', [])
                 package_dict['tags'] = self._clean_tags(tags)
 
+            # DLX custom starts: fluent support for title and notes
             if HAS_I18N:
                 lang = package_dict.get('language', 'en')
                 if 'notes' in package_dict and lang not in package_dict.get('notes_translated', {}) and ('notes_translated-%s' % lang) not in package_dict:
                     package_dict['notes_translated-%s' % lang] = package_dict['notes']
                 if 'title' in package_dict and lang not in package_dict.get('title_translated', {}) and ('title_translated-%s' % lang) not in package_dict:
                     package_dict['title_translated-%s' % lang] = package_dict['title']
+            # DLX custom ends
 
             # Check if package exists
             try:
@@ -302,9 +304,11 @@ class HarvesterBase(SingletonPlugin):
                 package_dict['name'] = existing_package_dict['name']
 
                 # Check modified date
+                # DLX custom starts: check if owner_org changed
                 if 'metadata_modified' not in package_dict or \
                    package_dict['metadata_modified'] > existing_package_dict.get('metadata_modified') \
                    or package_dict['owner_org'] != existing_package_dict.get('owner_org'):
+                   # DLX custom ends
                     log.info('Package with GUID %s exists and needs to be updated' % harvest_object.guid)
                     # Update package
                     context.update({'id': package_dict['id']})

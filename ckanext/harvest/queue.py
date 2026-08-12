@@ -291,6 +291,7 @@ class RedisConsumer(object):
         # If you change this, make sure to update the script in `queue_purge`
         message = json.loads(message)
 
+        # DLX custom start
         # something has been dumping {[message_key]: null} entries
         # into the harvest queue. At this point, it's a lot cause to
         # try to figure out what was originally referenced. If we just
@@ -298,6 +299,7 @@ class RedisConsumer(object):
         # can't find, and a local error will result but all the queues
         # won't be blocked.
         return self.routing_key + ':' + str(message[self.message_key])
+        # DLX custom end
 
     def basic_ack(self, message):
         self.redis.delete(self.persistance_key(message))
